@@ -4,6 +4,7 @@ use std::hash::Hash;
 use crate::raw::root::RED4ext as red;
 
 #[derive(Debug, Clone)]
+#[repr(transparent)]
 pub struct EntityId(red::ent::EntityID);
 
 impl PartialEq for EntityId {
