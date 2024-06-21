@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use byteorder::{BigEndian, ByteOrder};
@@ -8,6 +9,14 @@ use crate::raw::root::RED4ext as red;
 #[derive(Default, Clone, Copy)]
 #[repr(transparent)]
 pub struct TweakDbId(red::TweakDBID);
+
+impl Debug for TweakDbId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TweakDbId")
+            .field(&unsafe { self.0.__bindgen_anon_1.value })
+            .finish()
+    }
+}
 
 impl PartialEq for TweakDbId {
     fn eq(&self, other: &Self) -> bool {
@@ -25,9 +34,7 @@ impl PartialOrd for TweakDbId {
 
 impl Ord for TweakDbId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let me = unsafe { self.0.__bindgen_anon_1.value };
-        let other = unsafe { other.0.__bindgen_anon_1.value };
-        me.cmp(&other)
+        (&unsafe { self.0.__bindgen_anon_1.value }).cmp(&unsafe { other.0.__bindgen_anon_1.value })
     }
 }
 
@@ -36,6 +43,12 @@ impl From<u64> for TweakDbId {
         Self(red::TweakDBID {
             __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 { value },
         })
+    }
+}
+
+impl From<TweakDbId> for u64 {
+    fn from(value: TweakDbId) -> Self {
+        unsafe { value.0.__bindgen_anon_1.value }
     }
 }
 
@@ -91,11 +104,35 @@ impl TweakDbId {
     }
 
     pub fn set_tdb_offset(&mut self, offset: i32) {
-        assert!(offset <= (i8::MAX * i8::MAX * i8::MAX) as i32);
-        assert!(offset >= (i8::MIN * i8::MIN * i8::MIN) as i32);
+        assert!(offset <= (i8::MAX as i32 * i8::MAX as i32 * i8::MAX as i32));
+        assert!(offset >= (i8::MIN as i32 * i8::MIN as i32 * i8::MIN as i32));
         BigEndian::write_i24(
             unsafe { &mut self.0.__bindgen_anon_1.name.tdbOffsetBE },
             offset,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TweakDbId;
+
+    #[test]
+    fn conversion() {
+        assert_eq!(
+            TweakDbId::new("Items.FirstAidWhiffV0"),
+            TweakDbId::from(90_628_141_458)
+        );
+        assert_eq!(
+            u64::from(TweakDbId::new("Items.FirstAidWhiffV0")),
+            90_628_141_458
+        );
+    }
+
+    #[test]
+    fn mutation() {
+        let mut original = TweakDbId::from(90_628_141_458);
+        original.set_tdb_offset(128);
+        assert_eq!(original.to_tdb_offset(), 128);
     }
 }
