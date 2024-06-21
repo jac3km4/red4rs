@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::hash::Hash;
 
 use crate::raw::root::RED4ext as red;
