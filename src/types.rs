@@ -1,2 +1,2 @@
-mod entityid;
-pub use entityid::*;
+mod entity_id;
+pub use entity_id::*;
