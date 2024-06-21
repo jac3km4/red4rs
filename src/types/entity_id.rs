@@ -53,28 +53,28 @@ impl From<EntityId> for u64 {
 
 impl EntityId {
     #[inline]
-    pub const fn is_defined(&self) -> bool {
+    pub const fn is_defined(self) -> bool {
         self.0.hash != 0
     }
 
     #[inline]
-    pub const fn is_static(&self) -> bool {
+    pub const fn is_static(self) -> bool {
         self.0.hash != 0 && self.0.hash > red::ent::EntityID_DynamicUpperBound
     }
 
     #[inline]
-    pub const fn is_dynamic(&self) -> bool {
+    pub const fn is_dynamic(self) -> bool {
         self.0.hash != 0 && self.0.hash <= red::ent::EntityID_DynamicUpperBound
     }
 
     #[inline]
-    pub const fn is_persistable(&self) -> bool {
+    pub const fn is_persistable(self) -> bool {
         self.0.hash >= red::ent::EntityID_PersistableLowerBound
             && self.0.hash < red::ent::EntityID_PersistableUpperBound
     }
 
     #[inline]
-    pub const fn is_transient(&self) -> bool {
+    pub const fn is_transient(self) -> bool {
         self.0.hash != 0 && !self.is_persistable()
     }
 }
