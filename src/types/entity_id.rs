@@ -13,18 +13,6 @@ impl PartialEq for EntityId {
     }
 }
 
-impl PartialEq<red::ent::EntityID> for EntityId {
-    fn eq(&self, other: &red::ent::EntityID) -> bool {
-        self.0.hash.eq(&other.hash)
-    }
-}
-
-impl PartialEq<EntityId> for red::ent::EntityID {
-    fn eq(&self, other: &EntityId) -> bool {
-        self.hash.eq(&other.0.hash)
-    }
-}
-
 impl Eq for EntityId {}
 
 impl PartialOrd for EntityId {
