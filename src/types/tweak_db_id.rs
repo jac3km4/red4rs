@@ -54,6 +54,11 @@ impl From<TweakDbId> for u64 {
 
 impl TweakDbId {
     #[inline]
+    pub(super) const fn into_inner(self) -> red::TweakDBID {
+        self.0
+    }
+
+    #[inline]
     pub const fn new(str: &str) -> Self {
         assert!(str.len() <= u8::MAX as usize);
         Self(red::TweakDBID {
@@ -81,6 +86,16 @@ impl TweakDbId {
                 },
             },
         })
+    }
+
+    #[inline]
+    pub const fn hash(&self) -> u32 {
+        unsafe { self.0.__bindgen_anon_1.name.hash }
+    }
+
+    #[inline]
+    pub const fn len(&self) -> u8 {
+        unsafe { self.0.__bindgen_anon_1.name.length }
     }
 }
 
