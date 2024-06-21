@@ -17,7 +17,7 @@ impl Eq for EntityId {}
 
 impl PartialOrd for EntityId {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.hash.partial_cmp(&other.0.hash)
+        Some(self.cmp(other))
     }
 }
 
