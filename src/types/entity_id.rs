@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 use crate::raw::root::RED4ext as red;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
 pub struct EntityId(red::ent::EntityID);
 
