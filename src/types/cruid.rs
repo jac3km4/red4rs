@@ -15,7 +15,8 @@ impl Cruid {
 
     pub const fn new(str: &str) -> Self {
         Self(red::CRUID {
-            unk00: 0xF000000000000000 as u64 as i64 | (fnv1a32(str) << 2) as i64,
+            // https://discord.com/channels/717692382849663036/717720094196760760/1208391892119719946
+            unk00: 0xF000_0000_0000_0000_u64 as i64 | (fnv1a32(str) << 2) as i64,
         })
     }
 }
