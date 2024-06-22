@@ -73,7 +73,7 @@ impl TweakDbId {
         unsafe { self.0.__bindgen_anon_1.name }.length
     }
 
-    pub(super) const fn into_inner(self) -> red::TweakDBID {
+    pub(super) const fn to_inner(self) -> red::TweakDBID {
         self.0
     }
 }

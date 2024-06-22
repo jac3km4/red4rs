@@ -11,7 +11,7 @@ impl ItemId {
     #[inline]
     pub const fn new_from(id: TweakDbId) -> Self {
         Self(red::ItemID {
-            tdbid: id.into_inner(),
+            tdbid: id.to_inner(),
             rngSeed: DEFAULT_ITEM_ID_RNG_SEED,
             uniqueCounter: 0,
             structure: GamedataItemStructure::BlueprintStackable as u8,
