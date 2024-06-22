@@ -14,7 +14,7 @@ bindgen = { version = "0.69", features = ["experimental"] }
 cmake = "0.1"
 
 [features]
-default = ["chrono"]
+default = []
 chrono = ["dep:chrono"]
 
 [lints.rust]
