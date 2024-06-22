@@ -11,13 +11,13 @@ pub struct TweakDbId(red::TweakDBID);
 
 impl TweakDbId {
     #[inline]
-    const fn new_with_hash_and_len(hash: u32, length: u8) -> Self {
+    const fn new_with(hash: u32, length: u8, offset: [u8; 3]) -> Self {
         Self(red::TweakDBID {
             __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 {
                 name: red::TweakDBID__bindgen_ty_1__bindgen_ty_1 {
                     hash,
                     length,
-                    tdbOffsetBE: [0, 0, 0],
+                    tdbOffsetBE: offset,
                 },
             },
         })
@@ -26,7 +26,7 @@ impl TweakDbId {
     #[inline]
     pub const fn new(str: &str) -> Self {
         assert!(str.len() <= u8::MAX as usize);
-        Self::new_with_hash_and_len(crc32(str.as_bytes()), str.len() as u8)
+        Self::new_with(crc32(str.as_bytes()), str.len() as u8, [0, 0, 0])
     }
 
     #[inline]
@@ -34,9 +34,10 @@ impl TweakDbId {
         let base_hash = unsafe { base.0.__bindgen_anon_1.name.hash };
         let base_length = unsafe { base.0.__bindgen_anon_1.name.length };
         assert!((base_length as usize + str.len()) <= u8::MAX as usize);
-        Self::new_with_hash_and_len(
+        Self::new_with(
             crc32_seed(str.as_bytes(), base_hash),
             str.len() as u8 + base_length,
+            [0, 0, 0],
         )
     }
 
@@ -56,15 +57,11 @@ impl TweakDbId {
     pub fn with_tdb_offset(self, offset: i32) -> Self {
         assert!(offset <= (i8::MAX as i32 * i8::MAX as i32 * i8::MAX as i32));
         assert!(offset >= (i8::MIN as i32 * i8::MIN as i32 * i8::MIN as i32));
-        Self(red::TweakDBID {
-            __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 {
-                name: red::TweakDBID__bindgen_ty_1__bindgen_ty_1 {
-                    hash: unsafe { self.0.__bindgen_anon_1.name }.hash,
-                    length: unsafe { self.0.__bindgen_anon_1.name }.length,
-                    tdbOffsetBE: offset.to_be_bytes()[1..].try_into().expect("[u8; 3]"),
-                },
-            },
-        })
+        Self::new_with(
+            unsafe { self.0.__bindgen_anon_1.name }.hash,
+            unsafe { self.0.__bindgen_anon_1.name }.length,
+            offset.to_be_bytes()[1..].try_into().unwrap(),
+        )
     }
 }
 
