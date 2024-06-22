@@ -530,6 +530,7 @@ impl CName {
         })
     }
 
+    #[cfg(not(test))] // only available in-game
     pub fn as_str(&self) -> &'static str {
         unsafe { ffi::CStr::from_ptr(self.0.ToString()) }
             .to_str()
@@ -576,9 +577,7 @@ impl From<CName> for u64 {
 #[cfg(not(test))] // only available in-game
 impl std::fmt::Display for CName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let c_char = unsafe { red::CNamePool_Get(&self.0 as *const _) };
-        let c_str = unsafe { std::ffi::CStr::from_ptr(c_char) };
-        write!(f, "{}", c_str.to_str().unwrap())
+        write!(f, "{}", self.as_str())
     }
 }
 
