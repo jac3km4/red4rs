@@ -33,7 +33,7 @@ impl PartialOrd for TweakDbId {
 
 impl Ord for TweakDbId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        unsafe { self.0.__bindgen_anon_1.value }.cmp(&unsafe { other.0.__bindgen_anon_1.value })
+        u64::from(*self).cmp(&u64::from(*other))
     }
 }
 
