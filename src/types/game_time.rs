@@ -40,6 +40,18 @@ impl Hash for GameTime {
     }
 }
 
+impl From<u32> for GameTime {
+    fn from(seconds: u32) -> Self {
+        Self(red::GameTime { seconds })
+    }
+}
+
+impl From<GameTime> for u32 {
+    fn from(value: GameTime) -> Self {
+        value.0.seconds
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl From<GameTime> for chrono::DateTime<chrono::Utc> {
     fn from(value: GameTime) -> Self {
