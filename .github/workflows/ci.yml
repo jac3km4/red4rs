@@ -54,11 +54,6 @@ jobs:
   test:
     name: Run tests
     runs-on: windows-latest
-    env:
-      RUSTFLAGS: |
-        --skip raw::root::RED4ext::v0::Hooking::Attach
-        --skip raw::root::RED4ext::v0::Hooking::Detach
-        --skip raw::root::RED4ext::v0::Scripts::Add
     steps:
       - uses: actions/checkout@v4
         with:
