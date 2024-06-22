@@ -28,13 +28,13 @@ impl Eq for TweakDbId {}
 
 impl PartialOrd for TweakDbId {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for TweakDbId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (&unsafe { self.0.__bindgen_anon_1.value }).cmp(&unsafe { other.0.__bindgen_anon_1.value })
+        unsafe { self.0.__bindgen_anon_1.value }.cmp(&unsafe { other.0.__bindgen_anon_1.value })
     }
 }
 
@@ -100,7 +100,7 @@ impl TweakDbId {
     }
 
     pub fn to_tdb_offset(self) -> i32 {
-        BigEndian::read_i24(unsafe { &self.0.__bindgen_anon_1.name.tdbOffsetBE }) as i32
+        BigEndian::read_i24(unsafe { &self.0.__bindgen_anon_1.name.tdbOffsetBE })
     }
 
     pub fn set_tdb_offset(&mut self, offset: i32) {
