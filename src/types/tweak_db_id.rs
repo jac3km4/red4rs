@@ -57,10 +57,11 @@ impl TweakDbId {
     pub fn with_tdb_offset(self, offset: i32) -> Self {
         assert!(offset <= (i8::MAX as i32 * i8::MAX as i32 * i8::MAX as i32));
         assert!(offset >= (i8::MIN as i32 * i8::MIN as i32 * i8::MIN as i32));
+        let [_, b1, b2, b3] = offset.to_be_bytes();
         Self::new_with(
             unsafe { self.0.__bindgen_anon_1.name }.hash,
             unsafe { self.0.__bindgen_anon_1.name }.length,
-            offset.to_be_bytes()[1..].try_into().unwrap(),
+            [b1, b2, b3],
         )
     }
 }
