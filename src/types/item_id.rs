@@ -87,10 +87,10 @@ pub enum GameEItemIdFlag {
 
 impl From<u8> for GameEItemIdFlag {
     fn from(value: u8) -> Self {
-        if value == 1 {
-            return Self::Preview;
+        match value {
+            v if v == Self::Preview as u8 => Self::Preview,
+            _ => Self::None,
         }
-        Self::None
     }
 }
 
