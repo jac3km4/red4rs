@@ -63,3 +63,27 @@ impl From<Cruid> for i64 {
         unk00
     }
 }
+
+#[cfg(not(test))] // only available in-game
+impl From<crate::CName> for Cruid {
+    fn from(value: crate::CName) -> Self {
+        Self::new(value.as_str())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::Cruid;
+    use crate::CName;
+
+    #[test]
+    fn conversion() {
+        const NAME: &str = "Items.FirstAidWhiffV0";
+        let cruid = Cruid::new(NAME);
+        assert_eq!(i64::from(cruid), -0x0FFF_FFFF_CFF0_570C);
+        let cname = CName::new(NAME);
+        assert_eq!(u64::from(cname), 0x4856_A96F_939D_54FD);
+        // CName and CRUID hashes are not equivalent
+        assert_ne!(i64::from(cruid), u64::from(cname) as i64);
+    }
+}

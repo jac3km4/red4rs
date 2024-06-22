@@ -567,6 +567,21 @@ impl Hash for CName {
     }
 }
 
+impl From<CName> for u64 {
+    fn from(CName(red::CName { hash }): CName) -> Self {
+        hash
+    }
+}
+
+#[cfg(not(test))] // only available in-game
+impl std::fmt::Display for CName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let c_char = unsafe { red::CNamePool_Get(&self.0 as *const _) };
+        let c_str = unsafe { std::ffi::CStr::from_ptr(c_char) };
+        write!(f, "{}", c_str.to_str().unwrap())
+    }
+}
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Class(red::CClass);
