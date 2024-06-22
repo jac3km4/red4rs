@@ -85,7 +85,7 @@ impl TweakDbId {
 
 impl Hash for TweakDbId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        unsafe { self.0.__bindgen_anon_1.value }.hash(state);
+        u64::from(*self).hash(state);
     }
 }
 
