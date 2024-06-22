@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::path::Path;
 
 use thiserror::Error;
@@ -21,6 +22,32 @@ impl RaRef {
     }
 }
 
+impl PartialEq for RaRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.path.hash.eq(&other.0.path.hash)
+    }
+}
+
+impl Eq for RaRef {}
+
+impl PartialOrd for RaRef {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RaRef {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.path.hash.cmp(&other.0.path.hash)
+    }
+}
+
+impl Hash for RaRef {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.path.hash.hash(state);
+    }
+}
+
 #[derive(Debug, Default)]
 #[repr(transparent)]
 pub struct ResRef(red::ResRef);
@@ -34,6 +61,32 @@ impl ResRef {
                 },
             },
         }))
+    }
+}
+
+impl PartialEq for ResRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.resource.path.hash.eq(&other.0.resource.path.hash)
+    }
+}
+
+impl Eq for ResRef {}
+
+impl PartialOrd for ResRef {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ResRef {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.resource.path.hash.cmp(&other.0.resource.path.hash)
+    }
+}
+
+impl Hash for ResRef {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.resource.path.hash.hash(state);
     }
 }
 
@@ -92,21 +145,21 @@ pub enum ResourcePathError {
 #[macro_export]
 macro_rules! res_ref {
     ($base:expr, /$lit:literal $($tt:tt)*) => {
-        $crate::res_ref!([$base].join($lit), $($tt)*)
+        $crate::res_ref!($base.join($lit), $($tt)*)
     };
     ($base:expr, ) => {
         $base
     };
     ($lit:literal $($tt:tt)*) => {
         $crate::types::ResRef::new(
-            &$crate::res_ref!($lit, $($tt)*).to_string()
+            $crate::res_ref!(::std::path::Path::new($lit), $($tt)*)
         )
     };
 }
 
 #[cfg(test)]
 mod tests {
-    use super::encode_path;
+    use super::{encode_path, ResRef};
     use crate::fnv1a64;
 
     #[test]
@@ -136,5 +189,21 @@ mod tests {
         assert!(res_ref!("base" / "somewhere" / "in" / "archive" / "custom.ent").is_ok());
         assert!(res_ref!("custom.ent").is_ok());
         assert!(res_ref!(".custom.ent").is_ok());
+
+        assert_eq!(
+            res_ref!("base" / "somewhere" / "in" / "archive" / "custom.ent").unwrap(),
+            ResRef::new(std::path::Path::new(
+                "base\\somewhere\\in\\archive\\custom.ent"
+            ))
+            .unwrap()
+        );
+        assert_eq!(
+            res_ref!("custom.ent").unwrap(),
+            ResRef::new(std::path::Path::new("custom.ent")).unwrap()
+        );
+        assert_eq!(
+            res_ref!(".custom.ent").unwrap(),
+            ResRef::new(std::path::Path::new(".custom.ent")).unwrap()
+        );
     }
 }
