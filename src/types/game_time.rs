@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use crate::raw::root::RED4ext as red;
 
 #[derive(Default, Clone, Copy)]
@@ -9,6 +11,32 @@ impl std::fmt::Display for GameTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let [day, hour, min, sec] = unsafe { self.0.ToString() };
         write!(f, "{day}T{hour}:{min}:{sec}")
+    }
+}
+
+impl PartialEq for GameTime {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.seconds.eq(&other.0.seconds)
+    }
+}
+
+impl Eq for GameTime {}
+
+impl PartialOrd for GameTime {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GameTime {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.seconds.cmp(&other.0.seconds)
+    }
+}
+
+impl Hash for GameTime {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.seconds.hash(state);
     }
 }
 
