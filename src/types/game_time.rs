@@ -6,6 +6,21 @@ use crate::raw::root::RED4ext as red;
 #[repr(transparent)]
 pub struct GameTime(red::GameTime);
 
+impl GameTime {
+    pub fn new(days: u32, hours: u32, minutes: u32, seconds: u32) -> Self {
+        Self(red::GameTime {
+            seconds: seconds
+                .saturating_add(minutes.saturating_mul(60))
+                .saturating_add(hours.saturating_mul(60).saturating_mul(60))
+                .saturating_add(
+                    days.saturating_mul(24)
+                        .saturating_mul(60)
+                        .saturating_mul(60),
+                ),
+        })
+    }
+}
+
 #[cfg(not(test))]
 impl std::fmt::Display for GameTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
