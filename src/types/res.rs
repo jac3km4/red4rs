@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::path::Path;
 
 use thiserror::Error;
@@ -12,7 +10,7 @@ use crate::raw::root::RED4ext as red;
 pub struct RaRef(red::RaRef);
 
 impl RaRef {
-    fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+    pub fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
         Ok(Self(red::RaRef {
             path: red::ResourcePath {
                 hash: encode_path(path)?,
@@ -26,7 +24,7 @@ impl RaRef {
 pub struct ResRef(red::ResRef);
 
 impl ResRef {
-    fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+    pub fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
         Ok(Self(red::ResRef {
             resource: red::RaRef {
                 path: red::ResourcePath {
@@ -105,7 +103,7 @@ impl ResourcePath {
 
     /// accepts non-sanitized path of any length,
     /// but final sanitized path length must be equals or inferior to 216 bytes
-    fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+    pub fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
         Ok(Self(red::ResourcePath {
             hash: encode_path(&path)?,
         }))
