@@ -103,6 +103,7 @@ impl ResourcePath {
 
     /// accepts non-sanitized path of any length,
     /// but final sanitized path length must be equals or inferior to 216 bytes
+    #[allow(dead_code)]
     pub fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
         Ok(Self(red::ResourcePath {
             hash: encode_path(&path)?,
@@ -123,6 +124,22 @@ pub enum ResourcePathError {
     NotCanonical,
     #[error("resource path should be valid UTF-8")]
     InvalidUnicode,
+}
+
+/// shortcut for ResRef creation.
+#[macro_export]
+macro_rules! res_ref {
+    ($base:expr, /$lit:literal $($tt:tt)*) => {
+        $crate::res_ref!([$base].join($lit), $($tt)*)
+    };
+    ($base:expr, ) => {
+        $base
+    };
+    ($lit:literal $($tt:tt)*) => {
+        $crate::types::ResRef::new(
+            &$crate::res_ref!($lit, $($tt)*).to_string()
+        )
+    };
 }
 
 #[cfg(test)]
@@ -157,5 +174,14 @@ mod tests {
         assert!(ResourcePath::new("base\\somewhere\\in\\archive\\custom.ent").is_ok());
         assert!(ResourcePath::new("custom.ent").is_ok());
         assert!(ResourcePath::new(".custom.ent").is_ok());
+    }
+
+    #[test]
+    fn res_path() {
+        assert!(res_ref!("").is_err());
+        assert!(res_ref!(".." / "somewhere" / "in" / "archive" / "custom.ent").is_err());
+        assert!(res_ref!("base" / "somewhere" / "in" / "archive" / "custom.ent").is_ok());
+        assert!(res_ref!("custom.ent").is_ok());
+        assert!(res_ref!(".custom.ent").is_ok());
     }
 }
