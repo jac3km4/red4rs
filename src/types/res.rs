@@ -38,7 +38,7 @@ impl ResRef {
 impl Clone for ResRef {
     fn clone(&self) -> Self {
         Self(red::ResRef {
-            resource: self.0.resource.clone(),
+            resource: self.0.resource,
         })
     }
 }
@@ -73,11 +73,11 @@ fn encode_path(path: &(impl AsRef<Path> + ?Sized)) -> Result<u64, ResourcePathEr
         .to_str()
         .ok_or(ResourcePathError::InvalidUnicode)?;
     let sanitized = sanitized
-        .trim_start_matches(|c| c == '\'' || c == '\"')
-        .trim_end_matches(|c| c == '\'' || c == '\"')
-        .trim_start_matches(|c| c == '/' || c == '\\')
-        .trim_end_matches(|c| c == '/' || c == '\\')
-        .split(|c| c == '/' || c == '\\')
+        .trim_start_matches(['\'', '\"'])
+        .trim_end_matches(['\'', '\"'])
+        .trim_start_matches(['/', '\\'])
+        .trim_end_matches(['/', '\\'])
+        .split(['/', '\\'])
         .filter(|comp| !comp.is_empty())
         .map(str::to_ascii_lowercase)
         .reduce(|mut acc, e| {
