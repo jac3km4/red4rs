@@ -1,11 +1,47 @@
 use super::TweakDbId;
 use crate::raw::root::RED4ext as red;
 
+const DEFAULT_ITEM_ID_RNG_SEED: u32 = 2;
+
 #[derive(Default, Clone, Copy)]
 #[repr(transparent)]
 pub struct ItemId(red::ItemID);
 
-const DEFAULT_ITEM_ID_RNG_SEED: u32 = 2;
+impl ItemId {
+    #[inline]
+    pub const fn new_from(id: TweakDbId) -> Self {
+        Self(red::ItemID {
+            tdbid: id.into_inner(),
+            rngSeed: DEFAULT_ITEM_ID_RNG_SEED,
+            uniqueCounter: 0,
+            structure: GamedataItemStructure::BlueprintStackable as u8,
+            flags: GameEItemIdFlag::None as u8,
+        })
+    }
+
+    pub fn structure(&self) -> GamedataItemStructure {
+        self.0.structure.into()
+    }
+
+    pub fn flags(&self) -> GameEItemIdFlag {
+        self.0.flags.into()
+    }
+
+    #[inline]
+    pub fn get_tdbid(&self) -> TweakDbId {
+        TweakDbId::from(unsafe { self.0.tdbid.__bindgen_anon_1.value })
+    }
+
+    #[inline]
+    pub const fn is_of_tdbid(&self, tdbid: TweakDbId) -> bool {
+        unsafe { self.0.tdbid.__bindgen_anon_1.name }.hash == tdbid.hash()
+            && unsafe { self.0.tdbid.__bindgen_anon_1.name }.length == tdbid.len()
+    }
+
+    pub fn is_valid(&self) -> bool {
+        unsafe { self.0.IsValid() }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Seed(u32);
@@ -57,42 +93,6 @@ impl From<u8> for GameEItemIdFlag {
             return Self::Preview;
         }
         Self::None
-    }
-}
-
-impl ItemId {
-    #[inline]
-    pub const fn new_from(id: TweakDbId) -> Self {
-        Self(red::ItemID {
-            tdbid: id.into_inner(),
-            rngSeed: DEFAULT_ITEM_ID_RNG_SEED,
-            uniqueCounter: 0,
-            structure: GamedataItemStructure::BlueprintStackable as u8,
-            flags: GameEItemIdFlag::None as u8,
-        })
-    }
-
-    pub fn structure(&self) -> GamedataItemStructure {
-        self.0.structure.into()
-    }
-
-    pub fn flags(&self) -> GameEItemIdFlag {
-        self.0.flags.into()
-    }
-
-    #[inline]
-    pub fn get_tdbid(&self) -> TweakDbId {
-        TweakDbId::from(unsafe { self.0.tdbid.__bindgen_anon_1.value })
-    }
-
-    #[inline]
-    pub const fn is_of_tdbid(&self, tdbid: TweakDbId) -> bool {
-        unsafe { self.0.tdbid.__bindgen_anon_1.name }.hash == tdbid.hash()
-            && unsafe { self.0.tdbid.__bindgen_anon_1.name }.length == tdbid.len()
-    }
-
-    pub fn is_valid(&self) -> bool {
-        unsafe { self.0.IsValid() }
     }
 }
 
