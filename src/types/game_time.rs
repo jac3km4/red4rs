@@ -25,6 +25,8 @@ impl From<GameTime> for chrono::DateTime<chrono::Utc> {
 #[cfg(feature = "chrono")]
 impl From<chrono::DateTime<chrono::Utc>> for GameTime {
     fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
-        Self(red::GameTime { seconds: value.second() })
+        Self(red::GameTime {
+            seconds: value.second(),
+        })
     }
 }
