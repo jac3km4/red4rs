@@ -922,6 +922,24 @@ const fn fnv1a64(str: &str) -> u64 {
     }
 }
 
+const fn fnv1a32(str: &str) -> u32 {
+    const PRIME: u32 = 0x0100_0193;
+    const SEED: u32 = 0x811C_9DC5;
+
+    let mut tail = str.as_bytes();
+    let mut hash = SEED;
+    loop {
+        match tail.split_first() {
+            Some((head, rem)) => {
+                hash ^= *head as u32;
+                hash = hash.wrapping_mul(PRIME);
+                tail = rem;
+            }
+            None => break hash,
+        }
+    }
+}
+
 fn truncated_cstring(mut s: std::string::String) -> ffi::CString {
     s.truncate(s.find('\0').unwrap_or(s.len()));
     ffi::CString::new(s).unwrap()
