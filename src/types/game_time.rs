@@ -89,27 +89,27 @@ impl chrono::Timelike for GameTime {
     }
 
     fn with_hour(&self, hour: u32) -> Option<Self> {
-        if let Some(hour) = self.hour().checked_add(hour) {
+        if (0..=23).contains(&hour) {
             let mut copy = *self;
-            unsafe { copy.0.AddHours(hour) };
+            unsafe { copy.0.SetHour(hour) };
             return Some(copy);
         }
         None
     }
 
     fn with_minute(&self, min: u32) -> Option<Self> {
-        if let Some(min) = self.minute().checked_add(min) {
+        if (0..=59).contains(&min) {
             let mut copy = *self;
-            unsafe { copy.0.AddMinutes(min) };
+            unsafe { copy.0.SetMinute(min) };
             return Some(copy);
         }
         None
     }
 
     fn with_second(&self, sec: u32) -> Option<Self> {
-        if let Some(sec) = self.second().checked_add(sec) {
+        if (0..=59).contains(&sec) {
             let mut copy = *self;
-            unsafe { copy.0.AddSeconds(sec) };
+            unsafe { copy.0.SetSecond(sec) };
             return Some(copy);
         }
         None
@@ -118,18 +118,5 @@ impl chrono::Timelike for GameTime {
     /// GameTime does not support nanoseconds, so it will always return `None`
     fn with_nanosecond(&self, _: u32) -> Option<Self> {
         None
-    }
-
-    fn hour12(&self) -> (bool, u32) {
-        let hour = self.hour();
-        let mut hour12 = hour % 12;
-        if hour12 == 0 {
-            hour12 = 12;
-        }
-        (hour >= 12, hour12)
-    }
-
-    fn num_seconds_from_midnight(&self) -> u32 {
-        self.hour() * 3600 + self.minute() * 60 + self.second()
     }
 }
