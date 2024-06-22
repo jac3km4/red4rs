@@ -9,48 +9,6 @@ use crate::raw::root::RED4ext as red;
 #[repr(transparent)]
 pub struct TweakDbId(red::TweakDBID);
 
-impl Debug for TweakDbId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("TweakDbId")
-            .field(&unsafe { self.0.__bindgen_anon_1.value })
-            .finish()
-    }
-}
-
-impl PartialEq for TweakDbId {
-    fn eq(&self, other: &Self) -> bool {
-        u64::from(*self).eq(&u64::from(*other))
-    }
-}
-
-impl Eq for TweakDbId {}
-
-impl PartialOrd for TweakDbId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for TweakDbId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        u64::from(*self).cmp(&u64::from(*other))
-    }
-}
-
-impl From<u64> for TweakDbId {
-    fn from(value: u64) -> Self {
-        Self(red::TweakDBID {
-            __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 { value },
-        })
-    }
-}
-
-impl From<TweakDbId> for u64 {
-    fn from(value: TweakDbId) -> Self {
-        unsafe { value.0.__bindgen_anon_1.value }
-    }
-}
-
 impl TweakDbId {
     #[inline]
     const fn new_with_hash_and_len(hash: u32, length: u8) -> Self {
@@ -107,6 +65,48 @@ impl TweakDbId {
                 },
             },
         })
+    }
+}
+
+impl Debug for TweakDbId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TweakDbId")
+            .field(&unsafe { self.0.__bindgen_anon_1.value })
+            .finish()
+    }
+}
+
+impl PartialEq for TweakDbId {
+    fn eq(&self, other: &Self) -> bool {
+        u64::from(*self).eq(&u64::from(*other))
+    }
+}
+
+impl Eq for TweakDbId {}
+
+impl PartialOrd for TweakDbId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TweakDbId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        u64::from(*self).cmp(&u64::from(*other))
+    }
+}
+
+impl From<u64> for TweakDbId {
+    fn from(value: u64) -> Self {
+        Self(red::TweakDBID {
+            __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 { value },
+        })
+    }
+}
+
+impl From<TweakDbId> for u64 {
+    fn from(value: TweakDbId) -> Self {
+        unsafe { value.0.__bindgen_anon_1.value }
     }
 }
 
