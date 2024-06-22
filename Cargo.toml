@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = { version = "0.4.38", optional = true }
 const-crc32 = "1"
 winapi = { version = "0.3", features = ["minwindef"] }
 widestring = "1"
@@ -11,6 +12,10 @@ widestring = "1"
 [build-dependencies]
 bindgen = { version = "0.69", features = ["experimental"] }
 cmake = "0.1"
+
+[features]
+default = ["chrono"]
+chrono = ["dep:chrono"]
 
 [lints.rust]
 warnings = "deny"
