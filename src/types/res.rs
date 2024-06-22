@@ -73,7 +73,8 @@ fn encode_path(path: &(impl AsRef<Path> + ?Sized)) -> Result<u64, ResourcePathEr
     let sanitized = path
         .as_ref()
         .to_str()
-        .unwrap()
+        .ok_or(ResourcePathError::InvalidUnicode)?;
+    let sanitized = sanitized
         .trim_start_matches(|c| c == '\'' || c == '\"')
         .trim_end_matches(|c| c == '\'' || c == '\"')
         .trim_start_matches(|c| c == '/' || c == '\\')
@@ -122,6 +123,8 @@ pub enum ResourcePathError {
     TooLong,
     #[error("resource path should be an absolute canonical path in an archive e.g. 'base\\mod\\character.ent'")]
     NotCanonical,
+    #[error("resource path should be valid UTF-8")]
+    InvalidUnicode,
 }
 
 #[cfg(test)]
