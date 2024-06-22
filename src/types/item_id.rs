@@ -28,7 +28,7 @@ impl ItemId {
     }
 
     #[inline]
-    pub fn get_tdbid(&self) -> TweakDbId {
+    pub fn tdbid(&self) -> TweakDbId {
         TweakDbId::from(unsafe { self.0.tdbid.__bindgen_anon_1.value })
     }
 
