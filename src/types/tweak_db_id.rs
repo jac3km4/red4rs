@@ -81,15 +81,7 @@ impl TweakDbId {
             str.len() as u8 + base_length,
         )
     }
-}
 
-impl Hash for TweakDbId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        u64::from(*self).hash(state);
-    }
-}
-
-impl TweakDbId {
     pub fn is_valid(self) -> bool {
         unsafe { self.0.IsValid() }
     }
@@ -115,6 +107,12 @@ impl TweakDbId {
                 },
             },
         })
+    }
+}
+
+impl Hash for TweakDbId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        u64::from(*self).hash(state);
     }
 }
 
