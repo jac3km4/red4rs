@@ -54,7 +54,6 @@ impl Default for Seed {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd, Eq)]
 #[repr(u8)]
-#[allow(dead_code)]
 pub enum GamedataItemStructure {
     #[default]
     BlueprintStackable = 0,
@@ -80,7 +79,6 @@ impl From<u8> for GamedataItemStructure {
 /// and [CET initialization](https://github.com/maximegmd/CyberEngineTweaks/blob/v1.27.1/src/scripting/Scripting.cpp#L311).
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd, Eq)]
 #[repr(u8)]
-#[allow(dead_code)]
 pub enum GameEItemIdFlag {
     #[default]
     None = 0,
