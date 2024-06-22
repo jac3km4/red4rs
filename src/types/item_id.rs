@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn comparison() {
-        assert_eq!(ItemId::new_from(V0).get_tdbid(), V0);
+        assert_eq!(ItemId::new_from(V0).tdbid(), V0);
         assert!(ItemId::new_from(V0).is_of_tdbid(V0));
         assert!(ItemId::new_from(V0).is_of_tdbid(V1).not());
     }
