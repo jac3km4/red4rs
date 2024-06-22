@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-byteorder = "1.5.0"
 const-crc32 = "1"
 winapi = { version = "0.3", features = ["minwindef"] }
 widestring = "1"

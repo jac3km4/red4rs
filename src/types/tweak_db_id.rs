@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use byteorder::{BigEndian, ByteOrder};
 use const_crc32::{crc32, crc32_seed};
 
 use crate::raw::root::RED4ext as red;
@@ -100,16 +99,22 @@ impl TweakDbId {
     }
 
     pub fn to_tdb_offset(self) -> i32 {
-        BigEndian::read_i24(unsafe { &self.0.__bindgen_anon_1.name.tdbOffsetBE })
+        let [b1, b2, b3] = unsafe { self.0.__bindgen_anon_1.name }.tdbOffsetBE;
+        i32::from_be_bytes([0, b1, b2, b3])
     }
 
-    pub fn set_tdb_offset(&mut self, offset: i32) {
+    pub fn with_tdb_offset(self, offset: i32) -> Self {
         assert!(offset <= (i8::MAX as i32 * i8::MAX as i32 * i8::MAX as i32));
         assert!(offset >= (i8::MIN as i32 * i8::MIN as i32 * i8::MIN as i32));
-        BigEndian::write_i24(
-            unsafe { &mut self.0.__bindgen_anon_1.name.tdbOffsetBE },
-            offset,
-        );
+        Self(red::TweakDBID {
+            __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 {
+                name: red::TweakDBID__bindgen_ty_1__bindgen_ty_1 {
+                    hash: unsafe { self.0.__bindgen_anon_1.name }.hash,
+                    length: unsafe { self.0.__bindgen_anon_1.name }.length,
+                    tdbOffsetBE: offset.to_be_bytes()[1..].try_into().expect("[u8; 3]"),
+                },
+            },
+        })
     }
 }
 
@@ -131,8 +136,9 @@ mod tests {
 
     #[test]
     fn mutation() {
-        let mut original = TweakDbId::from(90_628_141_458);
-        original.set_tdb_offset(128);
-        assert_eq!(original.to_tdb_offset(), 128);
+        let original = TweakDbId::from(90_628_141_458);
+        let modified = original.with_tdb_offset(128);
+        assert_eq!(original.to_tdb_offset(), 0);
+        assert_eq!(modified.to_tdb_offset(), 128);
     }
 }
