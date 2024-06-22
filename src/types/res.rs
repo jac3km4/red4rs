@@ -9,6 +9,44 @@ use crate::raw::root::RED4ext as red;
 
 #[derive(Debug, Default, Clone, Copy)]
 #[repr(transparent)]
+pub struct RaRef(red::RaRef);
+
+impl RaRef {
+    fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+        Ok(Self(red::RaRef {
+            path: red::ResourcePath {
+                hash: encode_path(path)?,
+            },
+        }))
+    }
+}
+
+#[derive(Debug, Default)]
+#[repr(transparent)]
+pub struct ResRef(red::ResRef);
+
+impl ResRef {
+    fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+        Ok(Self(red::ResRef {
+            resource: red::RaRef {
+                path: red::ResourcePath {
+                    hash: encode_path(path)?,
+                },
+            },
+        }))
+    }
+}
+
+impl Clone for ResRef {
+    fn clone(&self) -> Self {
+        Self(red::ResRef {
+            resource: self.0.resource.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+#[repr(transparent)]
 pub struct ResourcePath(red::ResourcePath);
 
 impl PartialEq for ResourcePath {
@@ -31,40 +69,44 @@ impl Ord for ResourcePath {
     }
 }
 
+fn encode_path(path: &(impl AsRef<Path> + ?Sized)) -> Result<u64, ResourcePathError> {
+    let sanitized = path
+        .as_ref()
+        .to_str()
+        .unwrap()
+        .trim_start_matches(|c| c == '\'' || c == '\"')
+        .trim_end_matches(|c| c == '\'' || c == '\"')
+        .trim_start_matches(|c| c == '/' || c == '\\')
+        .trim_end_matches(|c| c == '/' || c == '\\')
+        .split(|c| c == '/' || c == '\\')
+        .filter(|comp| !comp.is_empty())
+        .map(str::to_ascii_lowercase)
+        .reduce(|mut acc, e| {
+            acc.push('\\');
+            acc.push_str(&e);
+            acc
+        })
+        .ok_or(ResourcePathError::Empty)?;
+    if sanitized.as_bytes().len() > ResourcePath::MAX_LENGTH {
+        return Err(ResourcePathError::TooLong);
+    }
+    if Path::new(&sanitized)
+        .components()
+        .any(|x| !matches!(x, std::path::Component::Normal(_)))
+    {
+        return Err(ResourcePathError::NotCanonical);
+    }
+    Ok(fnv1a64(&sanitized))
+}
+
 impl ResourcePath {
     pub const MAX_LENGTH: usize = 216;
 
     /// accepts non-sanitized path of any length,
     /// but final sanitized path length must be equals or inferior to 216 bytes
     fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
-        let sanitized = path
-            .as_ref()
-            .to_str()
-            .unwrap()
-            .trim_start_matches(|c| c == '\'' || c == '\"')
-            .trim_end_matches(|c| c == '\'' || c == '\"')
-            .trim_start_matches(|c| c == '/' || c == '\\')
-            .trim_end_matches(|c| c == '/' || c == '\\')
-            .split(|c| c == '/' || c == '\\')
-            .filter(|comp| !comp.is_empty())
-            .map(str::to_ascii_lowercase)
-            .reduce(|mut acc, e| {
-                acc.push('\\');
-                acc.push_str(&e);
-                acc
-            })
-            .ok_or(ResourcePathError::Empty)?;
-        if sanitized.as_bytes().len() > Self::MAX_LENGTH {
-            return Err(ResourcePathError::TooLong);
-        }
-        if Path::new(&sanitized)
-            .components()
-            .any(|x| !matches!(x, std::path::Component::Normal(_)))
-        {
-            return Err(ResourcePathError::NotCanonical);
-        }
         Ok(Self(red::ResourcePath {
-            hash: fnv1a64(&sanitized),
+            hash: encode_path(&path)?,
         }))
     }
 }
