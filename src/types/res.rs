@@ -12,7 +12,7 @@ pub const MAX_LENGTH: usize = 216;
 pub struct RaRef(red::RaRef);
 
 impl RaRef {
-    pub fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, ResourcePathError> {
         Ok(Self(red::RaRef {
             path: red::ResourcePath {
                 hash: encode_path(path)?,
@@ -26,7 +26,7 @@ impl RaRef {
 pub struct ResRef(red::ResRef);
 
 impl ResRef {
-    pub fn new(path: &(impl AsRef<Path> + ?Sized)) -> Result<Self, ResourcePathError> {
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, ResourcePathError> {
         Ok(Self(red::ResRef {
             resource: red::RaRef {
                 path: red::ResourcePath {
@@ -45,7 +45,7 @@ impl Clone for ResRef {
     }
 }
 
-fn encode_path(path: &(impl AsRef<Path> + ?Sized)) -> Result<u64, ResourcePathError> {
+fn encode_path(path: impl AsRef<Path>) -> Result<u64, ResourcePathError> {
     let sanitized = path
         .as_ref()
         .to_str()
