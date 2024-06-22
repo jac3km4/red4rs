@@ -19,7 +19,7 @@ impl Debug for TweakDbId {
 
 impl PartialEq for TweakDbId {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { self.0.__bindgen_anon_1.value == other.0.__bindgen_anon_1.value }
+        u64::from(*self).eq(&u64::from(*other))
     }
 }
 
