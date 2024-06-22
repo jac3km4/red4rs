@@ -53,17 +53,22 @@ impl From<TweakDbId> for u64 {
 
 impl TweakDbId {
     #[inline]
-    pub const fn new(str: &str) -> Self {
-        assert!(str.len() <= u8::MAX as usize);
+    const fn new_with_hash_and_len(hash: u32, length: u8) -> Self {
         Self(red::TweakDBID {
             __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 {
                 name: red::TweakDBID__bindgen_ty_1__bindgen_ty_1 {
-                    hash: crc32(str.as_bytes()),
-                    length: str.len() as u8,
+                    hash,
+                    length,
                     tdbOffsetBE: [0, 0, 0],
                 },
             },
         })
+    }
+
+    #[inline]
+    pub const fn new(str: &str) -> Self {
+        assert!(str.len() <= u8::MAX as usize);
+        Self::new_with_hash_and_len(crc32(str.as_bytes()), str.len() as u8)
     }
 
     #[inline]
