@@ -76,15 +76,10 @@ impl TweakDbId {
         let base_hash = unsafe { base.0.__bindgen_anon_1.name.hash };
         let base_length = unsafe { base.0.__bindgen_anon_1.name.length };
         assert!((base_length as usize + str.len()) <= u8::MAX as usize);
-        Self(red::TweakDBID {
-            __bindgen_anon_1: red::TweakDBID__bindgen_ty_1 {
-                name: red::TweakDBID__bindgen_ty_1__bindgen_ty_1 {
-                    hash: crc32_seed(str.as_bytes(), base_hash),
-                    length: str.len() as u8 + base_length,
-                    tdbOffsetBE: [0, 0, 0],
-                },
-            },
-        })
+        Self::new_with_hash_and_len(
+            crc32_seed(str.as_bytes(), base_hash),
+            str.len() as u8 + base_length,
+        )
     }
 }
 
