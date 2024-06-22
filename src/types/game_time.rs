@@ -20,7 +20,7 @@ impl From<GameTime> for chrono::DateTime<chrono::Utc> {
     }
 }
 
-#[cfg(feature = "chrono")]
+#[cfg(all(feature = "chrono", not(test)))]
 impl From<chrono::DateTime<chrono::Utc>> for GameTime {
     fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
         use chrono::Timelike;
@@ -30,7 +30,7 @@ impl From<chrono::DateTime<chrono::Utc>> for GameTime {
     }
 }
 
-#[cfg(feature = "chrono")]
+#[cfg(all(feature = "chrono", not(test)))]
 impl chrono::Timelike for GameTime {
     fn hour(&self) -> u32 {
         unsafe { self.0.GetHour() }
