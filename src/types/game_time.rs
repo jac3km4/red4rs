@@ -21,7 +21,6 @@ impl GameTime {
     }
 }
 
-#[cfg(not(test))]
 impl std::fmt::Display for GameTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let [day, hour, min, sec] = unsafe { self.0.ToString() };
@@ -75,7 +74,7 @@ impl From<GameTime> for chrono::DateTime<chrono::Utc> {
     }
 }
 
-#[cfg(all(feature = "chrono", not(test)))]
+#[cfg(feature = "chrono")]
 impl From<chrono::DateTime<chrono::Utc>> for GameTime {
     fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
         use chrono::Timelike;
@@ -85,7 +84,7 @@ impl From<chrono::DateTime<chrono::Utc>> for GameTime {
     }
 }
 
-#[cfg(all(feature = "chrono", not(test)))]
+#[cfg(feature = "chrono")]
 impl chrono::Timelike for GameTime {
     fn hour(&self) -> u32 {
         unsafe { self.0.GetHour() }
