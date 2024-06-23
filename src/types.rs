@@ -1,3 +1,5 @@
+mod engine_time;
+pub use engine_time::EngineTime;
 mod entity_id;
 pub use entity_id::EntityId;
 mod item_id;
