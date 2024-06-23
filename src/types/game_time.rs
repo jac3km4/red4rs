@@ -8,16 +8,51 @@ pub struct GameTime(red::GameTime);
 
 impl GameTime {
     pub fn new(days: u32, hours: u32, minutes: u32, seconds: u32) -> Self {
-        Self(red::GameTime {
-            seconds: seconds
-                .saturating_add(minutes.saturating_mul(60))
-                .saturating_add(hours.saturating_mul(60).saturating_mul(60))
-                .saturating_add(
-                    days.saturating_mul(24)
-                        .saturating_mul(60)
-                        .saturating_mul(60),
-                ),
-        })
+        let mut this = Self::default();
+        this.add_days(days);
+        this.add_hours(hours);
+        this.add_minutes(minutes);
+        this.add_seconds(seconds);
+        this
+    }
+
+    pub fn add_days(&mut self, days: u32) {
+        self.0.seconds = self.0.seconds.saturating_add(
+            days.saturating_mul(24)
+                .saturating_mul(60)
+                .saturating_mul(60),
+        );
+    }
+
+    pub fn add_hours(&mut self, hours: u32) {
+        self.0.seconds = self
+            .0
+            .seconds
+            .saturating_add(hours.saturating_mul(60).saturating_mul(60));
+    }
+
+    pub fn add_minutes(&mut self, minutes: u32) {
+        self.0.seconds = self.0.seconds.saturating_add(minutes.saturating_mul(60));
+    }
+
+    pub fn add_seconds(&mut self, seconds: u32) {
+        self.0.seconds = self.0.seconds.saturating_add(seconds);
+    }
+
+    pub fn day(&self) -> u32 {
+        unsafe { self.0.GetDay() }
+    }
+
+    pub fn hour(&self) -> u32 {
+        unsafe { self.0.GetHour() }
+    }
+
+    pub fn minute(&self) -> u32 {
+        unsafe { self.0.GetMinute() }
+    }
+
+    pub fn second(&self) -> u32 {
+        unsafe { self.0.GetSecond() }
     }
 }
 
@@ -87,15 +122,15 @@ impl From<chrono::DateTime<chrono::Utc>> for GameTime {
 #[cfg(feature = "chrono")]
 impl chrono::Timelike for GameTime {
     fn hour(&self) -> u32 {
-        unsafe { self.0.GetHour() }
+        Self::hour(self)
     }
 
     fn minute(&self) -> u32 {
-        unsafe { self.0.GetMinute() }
+        Self::minute(self)
     }
 
     fn second(&self) -> u32 {
-        unsafe { self.0.GetSecond() }
+        Self::second(self)
     }
 
     fn nanosecond(&self) -> u32 {
@@ -132,5 +167,29 @@ impl chrono::Timelike for GameTime {
     /// GameTime does not support nanoseconds, so it will always return `None`
     fn with_nanosecond(&self, _: u32) -> Option<Self> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GameTime;
+
+    #[test]
+    fn instantiation() {
+        let time = GameTime::new(2, 0, 7, 7);
+        assert_eq!(time.day(), 2);
+        assert_eq!(time.hour(), 0);
+        assert_eq!(time.minute(), 7);
+        assert_eq!(time.second(), 7);
+
+        #[cfg(feature = "chrono")]
+        {
+            use chrono::Timelike;
+            let time = time.with_minute(2).unwrap().with_second(2).unwrap();
+            assert_eq!(time.day(), 2);
+            assert_eq!(time.hour(), 0);
+            assert_eq!(time.minute(), 2);
+            assert_eq!(time.second(), 2);
+        }
     }
 }
