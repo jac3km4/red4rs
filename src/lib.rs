@@ -962,7 +962,7 @@ impl<'a> Rtti<'a> {
         if class.is_null() {
             return None;
         }
-        Some(unsafe { mem::transmute::<*const red::CClass, &Class>(class) })
+        Some(unsafe { &*class.cast::<Class>() })
     }
 
     #[inline]
