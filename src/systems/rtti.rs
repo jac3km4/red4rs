@@ -18,10 +18,6 @@ impl CRTTISystem {
         Some(unsafe { &*class.cast::<Class>() })
     }
 
-    pub fn register_callback(&self, cb: unsafe extern "C" fn()) {
-        unsafe { (self.vft().base.add_post_register_callback)(&(*self.0)._base, cb) };
-    }
-
     #[inline]
     fn vft(&self) -> &RTTISystemVft {
         unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
@@ -112,14 +108,27 @@ struct IRTTISystemVft {
         this: *const red::IRTTISystem,
         function: *const red::CGlobalFunction,
     ),
-    sub_d0: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
-    sub_d8: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
-    pub add_register_callback: unsafe extern "fastcall" fn(
+    sub_b0: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    sub_b8: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    // FIXME: crashes when used, signature is probably wrong
+    add_register_callback: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        function: unsafe extern "C" fn(),
+        function: unsafe extern "C" fn() -> (),
     ),
-    pub add_post_register_callback: unsafe extern "fastcall" fn(
+    // FIXME: crashes when used, signature is probably wrong
+    add_post_register_callback: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        function: unsafe extern "C" fn(),
+        function: unsafe extern "C" fn() -> (),
     ),
+}
+
+#[repr(transparent)]
+pub struct RTTIRegistrator;
+impl RTTIRegistrator {
+    pub fn add(
+        register: Option<unsafe extern "C" fn()>,
+        post_register: Option<unsafe extern "C" fn()>,
+    ) {
+        unsafe { red::RTTIRegistrator::Add(register, post_register, false) };
+    }
 }
