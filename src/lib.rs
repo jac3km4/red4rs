@@ -9,6 +9,7 @@ pub use widestring::{widecstr as wcstr, U16CStr};
 
 pub mod systems;
 pub mod types;
+pub mod utils;
 
 pub mod hashes {
     pub use super::red::Detail::AddressHashes::*;
@@ -631,6 +632,12 @@ impl ArrayType {
 #[repr(transparent)]
 pub struct Array<T>(red::DynArray<T>);
 
+impl<T> Default for Array<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 impl<T> ops::Deref for Array<T> {
     type Target = [T];
 
@@ -651,6 +658,20 @@ impl<'a, T> IntoIterator for &'a Array<T> {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<T, U> From<Array<*const T>> for Vec<U>
+where
+    T: Clone,
+    U: From<*const T>,
+{
+    fn from(value: Array<*const T>) -> Self {
+        let mut out = Vec::<U>::with_capacity(value.0.size as usize);
+        for entry in &value {
+            out.push(entry.clone().into());
+        }
+        out
     }
 }
 
@@ -928,8 +949,17 @@ fn truncated_cstring(mut s: std::string::String) -> ffi::CString {
     ffi::CString::new(s).unwrap()
 }
 
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct Enum(red::CEnum);
+
+wrap!(Enum, red::CEnum);
+
+impl Clone for red::CEnum {
+    fn clone(&self) -> Self {
+        unsafe { Self::new(self.name, self.actualSize.try_into().unwrap(), self.flags) }
+    }
+}
 
 impl Enum {
     #[inline]

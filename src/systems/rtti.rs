@@ -1,5 +1,5 @@
 use crate::raw::root::RED4ext as red;
-use crate::{CName, Class, Enum, Type};
+use crate::{Array, CName, Class, Enum, Type};
 
 #[repr(transparent)]
 pub struct CRTTISystem(*mut red::CRTTISystem);
@@ -34,6 +34,13 @@ impl CRTTISystem {
             return None;
         }
         Some(unsafe { &*ty.cast::<Enum>() })
+    }
+
+    #[inline]
+    pub fn get_enums(&self) -> Vec<Enum> {
+        let mut out = Array::default();
+        unsafe { (self.vft().base.get_enums)(&(*self.0)._base, &mut out.0 as *mut _) };
+        out.into()
     }
 
     #[inline]
