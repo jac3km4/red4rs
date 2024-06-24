@@ -51,7 +51,7 @@ struct IRTTISystemVft {
         this: *const red::IRTTISystem,
         name: *const red::CName,
     ) -> *const red::CBitfield,
-    sub_28: unsafe extern "fastcall" fn(this: *const red::IRTTISystem) -> VoidPtr,
+    sub_28: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
     pub get_function: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
         name: *const red::CName,
