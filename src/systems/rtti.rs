@@ -4,12 +4,12 @@ use crate::{CName, Class};
 #[repr(transparent)]
 pub struct Rtti(*mut red::CRTTISystem);
 
-#[allow(dead_code)]
 impl Rtti {
     pub fn get() -> Self {
         unsafe { Self(red::CRTTISystem_Get()) }
     }
 
+    #[inline]
     pub fn get_class(&self, name: CName) -> Option<&Class> {
         let class = unsafe { (self.vft().base.get_class)(&(*self.0)._base, &name.0 as *const _) };
         if class.is_null() {
