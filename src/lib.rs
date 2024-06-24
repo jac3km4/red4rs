@@ -957,11 +957,12 @@ impl<'a> Rtti<'a> {
     }
 
     pub fn get_class(&self, name: CName) -> Option<&Class> {
-        let class = unsafe { (self.vft().IRTTISystem_GetClass)(&self.inner._base, &name.0 as *const _) };
+        let class =
+            unsafe { (self.vft().IRTTISystem_GetClass)(&self.inner._base, &name.0 as *const _) };
         if class.is_null() {
             return None;
         }
-        Some(unsafe { mem::transmute(class) })
+        Some(unsafe { mem::transmute::<*const red::CClass, &Class>(class) })
     }
 
     #[inline]
