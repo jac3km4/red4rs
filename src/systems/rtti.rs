@@ -18,6 +18,10 @@ impl CRTTISystem {
         Some(unsafe { &*class.cast::<Class>() })
     }
 
+    pub fn register_callback(&self, cb: unsafe extern "C" fn()) {
+        unsafe { (self.vft().base.add_post_register_callback)(&(*self.0)._base, cb as *const _) };
+    }
+
     #[inline]
     fn vft(&self) -> &RTTISystemVft {
         unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
@@ -37,7 +41,7 @@ struct IRTTISystemVft {
     ) -> *const red::CBaseRTTIType,
     pub get_type_by_async_id: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        id: u32,
+        async_id: u32,
     ) -> *const red::CBaseRTTIType,
     pub get_class: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
@@ -85,5 +89,37 @@ struct IRTTISystemVft {
         out: *mut red::DynArray<*const red::CClass>,
         filter: *const fn(*const red::CClass) -> bool,
         include_abstract: bool,
+    ),
+    pub get_derived_classes: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        base_class: *const red::CClass,
+        out: *mut red::DynArray<*const red::CClass>,
+    ),
+    pub register_type: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        ty: *const red::CBaseRTTIType,
+        async_id: u32,
+    ),
+    sub_88: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    sub_90: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    pub unregister_type:
+        unsafe extern "fastcall" fn(this: *const red::IRTTISystem, ty: *const red::CBaseRTTIType),
+    pub register_function: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        function: *const red::CGlobalFunction,
+    ),
+    pub unregister_function: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        function: *const red::CGlobalFunction,
+    ),
+    sub_d0: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    sub_d8: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    pub add_register_callback: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        function: *const unsafe extern "C" fn(),
+    ),
+    pub add_post_register_callback: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        function: *const unsafe extern "C" fn(),
     ),
 }
