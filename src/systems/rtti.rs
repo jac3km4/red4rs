@@ -1,5 +1,5 @@
 use crate::raw::root::RED4ext as red;
-use crate::{CName, Class};
+use crate::{CName, Class, Enum, Type};
 
 #[repr(transparent)]
 pub struct CRTTISystem(*mut red::CRTTISystem);
@@ -16,6 +16,24 @@ impl CRTTISystem {
             return None;
         }
         Some(unsafe { &*class.cast::<Class>() })
+    }
+
+    #[inline]
+    pub fn get_type(&self, name: CName) -> Option<&Type> {
+        let ty = unsafe { (self.vft().base.get_type)(&(*self.0)._base, name.0) };
+        if ty.is_null() {
+            return None;
+        }
+        Some(unsafe { &*ty.cast::<Type>() })
+    }
+
+    #[inline]
+    pub fn get_enum(&self, name: CName) -> Option<&Enum> {
+        let ty = unsafe { (self.vft().base.get_enum)(&(*self.0)._base, name.0) };
+        if ty.is_null() {
+            return None;
+        }
+        Some(unsafe { &*ty.cast::<Enum>() })
     }
 
     #[inline]
@@ -120,6 +138,47 @@ struct IRTTISystemVft {
         this: *const red::IRTTISystem,
         function: unsafe extern "C" fn() -> (),
     ),
+    sub_d0: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    sub_d8: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    pub create_scripted_class: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: red::CName,
+        flags: red::CClass_Flags,
+        parent: *const red::CClass,
+    ),
+    // FIXME: signature is wrong, but how to represent name and value of enumerator ?
+    // https://github.com/WopsS/RED4ext.SDK/blob/124984353556f7b343041b810040062fbaa96196/include/RED4ext/RTTISystem.hpp#L50
+    pub create_scripted_enum: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: red::CName,
+        size: i8,
+        variants: *mut red::DynArray<u64>,
+    ),
+    // FIXME: signature is wrong, but how to represent name and bit ?
+    // https://github.com/WopsS/RED4ext.SDK/blob/124984353556f7b343041b810040062fbaa96196/include/RED4ext/RTTISystem.hpp#L54
+    pub create_scripted_bitfield: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: red::CName,
+        bits: *mut red::DynArray<u64>,
+    ),
+    initialize_script_runtime: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
+    pub register_script_name: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        native_name: red::CName,
+        script_name: red::CName,
+    ),
+    pub get_class_by_script_name: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: red::CName,
+    ) -> *const red::CClass,
+    pub get_enum_by_script_name: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: red::CName,
+    ) -> *const red::CEnum,
+    pub convert_native_to_script_name:
+        unsafe extern "fastcall" fn(this: *const red::IRTTISystem, name: red::CName) -> red::CName,
+    pub convert_script_to_native_name:
+        unsafe extern "fastcall" fn(this: *const red::IRTTISystem, name: red::CName) -> red::CName,
 }
 
 #[repr(transparent)]

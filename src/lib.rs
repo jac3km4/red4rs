@@ -927,3 +927,28 @@ fn truncated_cstring(mut s: std::string::String) -> ffi::CString {
     s.truncate(s.find('\0').unwrap_or(s.len()));
     ffi::CString::new(s).unwrap()
 }
+
+#[repr(transparent)]
+pub struct Enum(red::CEnum);
+
+impl Enum {
+    #[inline]
+    pub fn name(&self) -> CName {
+        CName(self.0.name)
+    }
+
+    #[inline]
+    pub fn variants(&self) -> Vec<CName> {
+        let inner = unsafe {
+            std::slice::from_raw_parts::<'_, red::CName>(
+                &*self.0.aliasList.entries,
+                self.0.actualSize as usize,
+            )
+        };
+        let mut out = Vec::with_capacity(self.0.actualSize as usize);
+        for name in inner {
+            out.push(CName(name.clone()));
+        }
+        out
+    }
+}
