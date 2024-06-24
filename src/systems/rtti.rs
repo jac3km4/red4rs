@@ -11,7 +11,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_class(&self, name: CName) -> Option<&Class> {
-        let class = unsafe { (self.vft().base.get_class)(&(*self.0)._base, &name.0 as *const _) };
+        let class = unsafe { (self.vft().base.get_class)(&(*self.0)._base, name.0) };
         if class.is_null() {
             return None;
         }
@@ -33,7 +33,7 @@ struct RTTISystemVft {
 struct IRTTISystemVft {
     pub get_type: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        name: *const red::CName,
+        name: red::CName,
     ) -> *const red::CBaseRTTIType,
     pub get_type_by_async_id: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
@@ -41,11 +41,11 @@ struct IRTTISystemVft {
     ) -> *const red::CBaseRTTIType,
     pub get_class: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        name: *const red::CName,
+        name: red::CName,
     ) -> *const red::CClass,
     pub get_enum: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        name: *const red::CName,
+        name: red::CName,
     ) -> *const red::CEnum,
     pub get_bit_field: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
