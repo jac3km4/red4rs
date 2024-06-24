@@ -2,9 +2,9 @@ use crate::raw::root::RED4ext as red;
 use crate::{CName, Class};
 
 #[repr(transparent)]
-pub struct Rtti(*mut red::CRTTISystem);
+pub struct CRTTISystem(*mut red::CRTTISystem);
 
-impl Rtti {
+impl CRTTISystem {
     pub fn get() -> Self {
         unsafe { Self(red::CRTTISystem_Get()) }
     }
@@ -19,18 +19,18 @@ impl Rtti {
     }
 
     #[inline]
-    fn vft(&self) -> &RttiVft {
-        unsafe { &*((*self.0)._base.vtable_ as *const RttiVft) }
+    fn vft(&self) -> &RTTISystemVft {
+        unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
     }
 }
 
 #[repr(C)]
-struct RttiVft {
-    base: IRttiVft,
+struct RTTISystemVft {
+    base: IRTTISystemVft,
 }
 
 #[repr(C)]
-struct IRttiVft {
+struct IRTTISystemVft {
     pub get_type: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
         name: *const red::CName,

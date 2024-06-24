@@ -1,2 +1,2 @@
 mod rtti;
-pub use rtti::Rtti;
+pub use rtti::CRTTISystem;
