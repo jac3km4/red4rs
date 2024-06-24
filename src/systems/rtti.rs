@@ -19,7 +19,7 @@ impl CRTTISystem {
     }
 
     pub fn register_callback(&self, cb: unsafe extern "C" fn()) {
-        unsafe { (self.vft().base.add_post_register_callback)(&(*self.0)._base, cb as *const _) };
+        unsafe { (self.vft().base.add_post_register_callback)(&(*self.0)._base, cb) };
     }
 
     #[inline]
@@ -116,10 +116,10 @@ struct IRTTISystemVft {
     sub_d8: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
     pub add_register_callback: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        function: *const unsafe extern "C" fn(),
+        function: unsafe extern "C" fn(),
     ),
     pub add_post_register_callback: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        function: *const unsafe extern "C" fn(),
+        function: unsafe extern "C" fn(),
     ),
 }
