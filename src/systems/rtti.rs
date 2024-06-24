@@ -1,39 +1,17 @@
-use std::pin::Pin;
-
 use crate::raw::root::RED4ext as red;
 use crate::{CName, Class};
 
-#[repr(C)]
-#[allow(non_snake_case)]
-struct RttiVft {
-    pub IRTTISystem_GetType: unsafe extern "fastcall" fn(
-        this: &red::IRTTISystem,
-        name: *const red::CName,
-    ) -> *const red::CBaseRTTIType,
-    pub IRTTISystem_GetTypeByAsyncId:
-        unsafe extern "fastcall" fn(this: &red::IRTTISystem, id: u32) -> *const red::CBaseRTTIType,
-    pub IRTTISystem_GetClass: unsafe extern "fastcall" fn(
-        this: &red::IRTTISystem,
-        this: *const red::CName,
-    ) -> *const red::CClass,
-}
+#[repr(transparent)]
+pub struct Rtti(*mut red::CRTTISystem);
 
 #[allow(dead_code)]
-pub struct Rtti<'a> {
-    inner: Pin<&'a mut red::CRTTISystem>,
-}
-
-impl<'a> Rtti<'a> {
-    #[inline]
+impl Rtti {
     pub fn get() -> Self {
-        Self {
-            inner: unsafe { Pin::new_unchecked(&mut *red::CRTTISystem::Get()) },
-        }
+        unsafe { Self(red::CRTTISystem_Get()) }
     }
 
     pub fn get_class(&self, name: CName) -> Option<&Class> {
-        let class =
-            unsafe { (self.vft().IRTTISystem_GetClass)(&self.inner._base, &name.0 as *const _) };
+        let class = unsafe { (self.vft().base.get_class)(&(*self.0)._base, &name.0 as *const _) };
         if class.is_null() {
             return None;
         }
@@ -42,6 +20,27 @@ impl<'a> Rtti<'a> {
 
     #[inline]
     fn vft(&self) -> &RttiVft {
-        unsafe { &*(self.inner._base.vtable_ as *const RttiVft) }
+        unsafe { &*((*self.0)._base.vtable_ as *const RttiVft) }
     }
+}
+
+#[repr(C)]
+struct RttiVft {
+    base: IRttiVft,
+}
+
+#[repr(C)]
+struct IRttiVft {
+    pub get_type: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: *const red::CName,
+    ) -> *const red::CBaseRTTIType,
+    pub get_type_by_async_id: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        id: u32,
+    ) -> *const red::CBaseRTTIType,
+    pub get_class: unsafe extern "fastcall" fn(
+        this: *const red::IRTTISystem,
+        name: *const red::CName,
+    ) -> *const red::CClass,
 }
