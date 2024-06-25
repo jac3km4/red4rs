@@ -483,6 +483,14 @@ impl StackFrame {
 #[repr(transparent)]
 pub struct Function(red::CBaseFunction);
 
+wrap!(Function, red::CBaseFunction);
+
+impl Clone for red::CBaseFunction {
+    fn clone(&self) -> Self {
+        unsafe { ptr::read(self) }
+    }
+}
+
 impl Function {
     #[inline]
     pub fn name(&self) -> CName {

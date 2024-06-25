@@ -1,5 +1,5 @@
 use crate::raw::root::RED4ext as red;
-use crate::{Array, Bitfield, CName, Class, Enum, Type};
+use crate::{Array, Bitfield, CName, Class, Enum, Function, Type};
 
 #[repr(transparent)]
 pub struct CRTTISystem(*mut red::CRTTISystem);
@@ -46,6 +46,15 @@ impl CRTTISystem {
     }
 
     #[inline]
+    pub fn get_function(&self, name: CName) -> Option<&Function> {
+        let ty = unsafe { (self.vft().base.get_function)(&(*self.0)._base, name.0) };
+        if ty.is_null() {
+            return None;
+        }
+        Some(unsafe { &*ty.cast::<Function>() })
+    }
+
+    #[inline]
     pub fn get_enums(&self) -> Vec<Enum> {
         let mut out = Array::default();
         unsafe { (self.vft().base.get_enums)(&(*self.0)._base, &mut out.0 as *mut _) };
@@ -58,6 +67,13 @@ impl CRTTISystem {
         unsafe {
             (self.vft().base.get_bitfields)(&(*self.0)._base, &mut out.0 as *mut _, scripted_only)
         };
+        out.into()
+    }
+
+    #[inline]
+    pub fn get_global_functions(&self) -> Vec<Function> {
+        let mut out = Array::default();
+        unsafe { (self.vft().base.get_global_functions)(&(*self.0)._base, &mut out.0 as *mut _) };
         out.into()
     }
 
@@ -97,7 +113,7 @@ struct IRTTISystemVft {
     sub_28: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
     pub get_function: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        name: *const red::CName,
+        name: red::CName,
     ) -> *const red::CBaseFunction,
     sub_38: unsafe extern "fastcall" fn(this: *const red::IRTTISystem),
     pub get_native_types: unsafe extern "fastcall" fn(
