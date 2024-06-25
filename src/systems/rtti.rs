@@ -91,6 +91,40 @@ impl CRTTISystem {
         out.into()
     }
 
+    /// retrieve base class and its inheritors, optionally including abstract classes
+    /// while allowing custom filter.
+    #[inline]
+    pub fn get_classes(
+        &self,
+        base: &Class,
+        mut filter: Option<&mut dyn FnMut(&Class) -> bool>,
+        include_abstract: bool,
+    ) -> Vec<Class> {
+        let mut classes = Array::<*const red::CClass>::default();
+        unsafe {
+            (self.vft().base.get_classes)(
+                &(*self.0)._base,
+                &base.0,
+                &mut classes.0 as *mut _,
+                None,
+                include_abstract,
+            )
+        };
+
+        if filter.is_none() {
+            return classes.into();
+        }
+
+        let mut out = Vec::<Class>::with_capacity(classes.0.size as usize);
+        for class in &classes {
+            if !filter.as_mut().unwrap()(class.as_ref()) {
+                continue;
+            }
+            out.push((*class).into());
+        }
+        out
+    }
+
     #[inline]
     fn vft(&self) -> &RTTISystemVft {
         unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
@@ -154,9 +188,9 @@ struct IRTTISystemVft {
     ),
     pub get_classes: unsafe extern "fastcall" fn(
         this: *const red::IRTTISystem,
-        class: *const red::CClass,
+        base_class: *const red::CClass,
         out: *mut red::DynArray<*const red::CClass>,
-        filter: *const fn(*const red::CClass) -> bool,
+        filter: Option<unsafe extern "C" fn(*const Class) -> bool>,
         include_abstract: bool,
     ),
     pub get_derived_classes: unsafe extern "fastcall" fn(

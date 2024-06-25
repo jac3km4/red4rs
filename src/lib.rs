@@ -587,6 +587,8 @@ impl Hash for CName {
 #[repr(transparent)]
 pub struct Class(red::CClass);
 
+wrap!(Class, red::CClass);
+
 impl Class {
     #[inline]
     pub fn name(&self) -> CName {
@@ -613,6 +615,12 @@ impl Class {
             .chain(self.base_iter())
             .flat_map(Class::properties)
             .copied()
+    }
+}
+
+impl Clone for red::CClass {
+    fn clone(&self) -> Self {
+        unsafe { ptr::read(self) }
     }
 }
 
