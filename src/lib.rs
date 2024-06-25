@@ -982,3 +982,34 @@ impl Enum {
         out
     }
 }
+
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct Bitfield(red::CBitfield);
+
+impl Bitfield {
+    pub fn name(&self) -> CName {
+        CName(self.0.name)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.actualSize as usize
+    }
+
+    pub fn variants(&self) -> Vec<CName> {
+        self.0
+            .bitNames
+            .into_iter()
+            .filter(|x| x.hash == 0)
+            .map(|x| CName(x))
+            .collect::<Vec<_>>()
+    }
+}
+
+wrap!(Bitfield, red::CBitfield);
+
+impl Clone for red::CBitfield {
+    fn clone(&self) -> Self {
+        unsafe { Self::new(self.name, self.actualSize.try_into().unwrap(), self.flags) }
+    }
+}
