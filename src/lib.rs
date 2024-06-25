@@ -793,7 +793,9 @@ impl Type {
     #[inline]
     pub fn name(&self) -> CName {
         // calling Type with unk8 == 0 crashes the game
-        if self.0.unk8 == 0 { return CName::undefined(); }
+        if self.0.unk8 == 0 {
+            return CName::undefined();
+        }
         CName(unsafe { (self.vft().tail.CBaseRTTIType_GetName)(&self.0) })
     }
 
