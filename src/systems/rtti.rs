@@ -136,6 +136,24 @@ impl CRTTISystem {
     }
 
     #[inline]
+    pub fn get_class_by_script_name(&self, name: CName) -> Option<&Class> {
+        let ty = unsafe { (self.vft().base.get_class_by_script_name)(&(*self.0)._base, name.0) };
+        if ty.is_null() {
+            return None;
+        }
+        Some(unsafe { &*ty.cast::<Class>() })
+    }
+
+    #[inline]
+    pub fn get_enum_by_script_name(&self, name: CName) -> Option<&Enum> {
+        let ty = unsafe { (self.vft().base.get_enum_by_script_name)(&(*self.0)._base, name.0) };
+        if ty.is_null() {
+            return None;
+        }
+        Some(unsafe { &*ty.cast::<Enum>() })
+    }
+
+    #[inline]
     fn vft(&self) -> &RTTISystemVft {
         unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
     }
