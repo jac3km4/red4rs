@@ -7,6 +7,7 @@ macro_rules! wrap {
             }
         }
 
+        #[allow(clippy::not_unsafe_ptr_arg_deref)]
         impl From<*const $binding> for $newty {
             fn from(value: *const $binding) -> Self {
                 Self(unsafe { &*value }.clone())
