@@ -533,6 +533,20 @@ impl From<u64> for CName {
     }
 }
 
+impl std::fmt::Display for CName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            if self.0.hash == 0 {
+                "None"
+            } else {
+                self.as_str()
+            }
+        )
+    }
+}
+
 impl CName {
     #[inline]
     pub const fn undefined() -> Self {
