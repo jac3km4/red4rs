@@ -78,6 +78,13 @@ impl CRTTISystem {
     }
 
     #[inline]
+    pub fn get_class_functions(&self) -> Vec<Function> {
+        let mut out = Array::default();
+        unsafe { (self.vft().base.get_class_functions)(&(*self.0)._base, &mut out.0 as *mut _) };
+        out.into()
+    }
+
+    #[inline]
     fn vft(&self) -> &RTTISystemVft {
         unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
     }
