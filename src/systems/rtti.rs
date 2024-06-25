@@ -55,6 +55,13 @@ impl CRTTISystem {
     }
 
     #[inline]
+    pub fn get_native_types(&self) -> Vec<Type> {
+        let mut out = Array::default();
+        unsafe { (self.vft().base.get_native_types)(&(*self.0)._base, &mut out.0 as *mut _) };
+        out.into()
+    }
+
+    #[inline]
     pub fn get_enums(&self) -> Vec<Enum> {
         let mut out = Array::default();
         unsafe { (self.vft().base.get_enums)(&(*self.0)._base, &mut out.0 as *mut _) };
