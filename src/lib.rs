@@ -1007,7 +1007,7 @@ impl Bitfield {
         self.0
             .bitNames
             .into_iter()
-            .filter(|x| x.hash == 0)
+            .filter(|x| x.hash != 0)
             .map(CName)
             .collect::<Vec<_>>()
     }
