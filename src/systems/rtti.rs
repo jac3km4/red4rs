@@ -125,6 +125,16 @@ impl CRTTISystem {
         out
     }
 
+    /// retrieve derived classes, omitting base in the output.
+    #[inline]
+    pub fn get_derived_classes(&self, base: &Class) -> Vec<Class> {
+        let mut out = Array::<*const red::CClass>::default();
+        unsafe {
+            (self.vft().base.get_derived_classes)(&(*self.0)._base, &base.0, &mut out.0 as *mut _)
+        };
+        out.into()
+    }
+
     #[inline]
     fn vft(&self) -> &RTTISystemVft {
         unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
