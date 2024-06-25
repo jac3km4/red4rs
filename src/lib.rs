@@ -519,6 +519,12 @@ impl Function {
 #[repr(transparent)]
 pub struct CName(red::CName);
 
+impl From<u64> for CName {
+    fn from(hash: u64) -> Self {
+        Self(red::CName { hash })
+    }
+}
+
 impl CName {
     #[inline]
     pub const fn undefined() -> Self {
@@ -669,7 +675,7 @@ where
     fn from(value: Array<*const T>) -> Self {
         let mut out = Vec::<U>::with_capacity(value.0.size as usize);
         for entry in &value {
-            out.push(entry.clone().into());
+            out.push((*entry).into());
         }
         out
     }
@@ -977,7 +983,7 @@ impl Enum {
         };
         let mut out = Vec::with_capacity(self.0.actualSize as usize);
         for name in inner {
-            out.push(CName(name.clone()));
+            out.push(CName(*name));
         }
         out
     }
@@ -1001,7 +1007,7 @@ impl Bitfield {
             .bitNames
             .into_iter()
             .filter(|x| x.hash == 0)
-            .map(|x| CName(x))
+            .map(CName)
             .collect::<Vec<_>>()
     }
 }
