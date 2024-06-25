@@ -292,9 +292,11 @@ struct IRTTISystemVft {
         this: *const red::IRTTISystem,
         name: red::CName,
     ) -> *const red::CEnum,
-    pub convert_native_to_script_name:
+    // FIXME: crashes when used, signature is probably wrong
+    convert_native_to_script_name:
         unsafe extern "fastcall" fn(this: *const red::IRTTISystem, name: red::CName) -> red::CName,
-    pub convert_script_to_native_name:
+    // FIXME: crashes when used, signature is probably wrong
+    convert_script_to_native_name:
         unsafe extern "fastcall" fn(this: *const red::IRTTISystem, name: red::CName) -> red::CName,
 }
 
