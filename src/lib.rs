@@ -969,18 +969,8 @@ impl Enum {
     }
 
     #[inline]
-    pub fn variants(&self) -> Vec<CName> {
-        let inner = unsafe {
-            std::slice::from_raw_parts::<'_, red::CName>(
-                &*self.0.aliasList.entries,
-                self.0.actualSize as usize,
-            )
-        };
-        let mut out = Vec::with_capacity(self.0.actualSize as usize);
-        for name in inner {
-            out.push(CName(*name));
-        }
-        out
+    pub fn variant_names(&self) -> &Array<CName> {
+        unsafe { mem::transmute(&self.0.aliasList) }
     }
 }
 
@@ -993,12 +983,7 @@ impl Bitfield {
         CName(self.0.name)
     }
 
-    pub fn variants(&self) -> Vec<CName> {
-        self.0
-            .bitNames
-            .into_iter()
-            .filter(|x| x.hash != 0)
-            .map(CName)
-            .collect::<Vec<_>>()
+    pub fn fields(&self) -> &[CName; 64] {
+        unsafe { mem::transmute(&self.0.bitNames) }
     }
 }
