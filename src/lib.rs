@@ -9,7 +9,6 @@ pub use widestring::{widecstr as wcstr, U16CStr};
 
 pub mod systems;
 pub mod types;
-pub mod utils;
 
 pub mod hashes {
     pub use super::red::Detail::AddressHashes::*;
@@ -483,8 +482,6 @@ impl StackFrame {
 #[repr(transparent)]
 pub struct Function(red::CBaseFunction);
 
-wrap!(Function, red::CBaseFunction);
-
 impl Clone for red::CBaseFunction {
     fn clone(&self) -> Self {
         unsafe { ptr::read(self) }
@@ -601,8 +598,6 @@ impl Hash for CName {
 #[repr(transparent)]
 pub struct Class(red::CClass);
 
-wrap!(Class, red::CClass);
-
 impl Class {
     #[inline]
     pub fn name(&self) -> CName {
@@ -697,20 +692,6 @@ impl<'a, T> IntoIterator for &'a Array<T> {
     }
 }
 
-impl<T, U> From<Array<*const T>> for Vec<U>
-where
-    T: Clone,
-    U: From<*const T>,
-{
-    fn from(value: Array<*const T>) -> Self {
-        let mut out = Vec::<U>::with_capacity(value.0.size as usize);
-        for entry in &value {
-            out.push((*entry).into());
-        }
-        out
-    }
-}
-
 #[repr(transparent)]
 pub struct String(red::CString);
 
@@ -802,8 +783,6 @@ impl Property {
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Type(red::CBaseRTTIType);
-
-wrap!(Type, red::CBaseRTTIType);
 
 impl Clone for red::CBaseRTTIType {
     fn clone(&self) -> Self {
@@ -1001,8 +980,6 @@ fn truncated_cstring(mut s: std::string::String) -> ffi::CString {
 #[repr(transparent)]
 pub struct Enum(red::CEnum);
 
-wrap!(Enum, red::CEnum);
-
 impl Clone for red::CEnum {
     fn clone(&self) -> Self {
         unsafe { Self::new(self.name, self.actualSize.try_into().unwrap(), self.flags) }
@@ -1049,8 +1026,6 @@ impl Bitfield {
             .collect::<Vec<_>>()
     }
 }
-
-wrap!(Bitfield, red::CBitfield);
 
 impl Clone for red::CBitfield {
     fn clone(&self) -> Self {

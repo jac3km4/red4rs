@@ -58,14 +58,20 @@ impl CRTTISystem {
     pub fn get_native_types(&self) -> Vec<Type> {
         let mut out = Array::default();
         unsafe { (self.vft().base.get_native_types)(&(*self.0)._base, &mut out.0 as *mut _) };
-        out.into()
+        out.as_ref()
+            .iter()
+            .map(|x| Type(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
     #[inline]
     pub fn get_enums(&self) -> Vec<Enum> {
         let mut out = Array::default();
         unsafe { (self.vft().base.get_enums)(&(*self.0)._base, &mut out.0 as *mut _) };
-        out.into()
+        out.as_ref()
+            .iter()
+            .map(|x| Enum(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
     #[inline]
@@ -74,65 +80,62 @@ impl CRTTISystem {
         unsafe {
             (self.vft().base.get_bitfields)(&(*self.0)._base, &mut out.0 as *mut _, scripted_only)
         };
-        out.into()
+        out.as_ref()
+            .iter()
+            .map(|x| Bitfield(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
     #[inline]
     pub fn get_global_functions(&self) -> Vec<Function> {
         let mut out = Array::default();
         unsafe { (self.vft().base.get_global_functions)(&(*self.0)._base, &mut out.0 as *mut _) };
-        out.into()
+        out.as_ref()
+            .iter()
+            .map(|x| Function(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
     #[inline]
     pub fn get_class_functions(&self) -> Vec<Function> {
         let mut out = Array::default();
         unsafe { (self.vft().base.get_class_functions)(&(*self.0)._base, &mut out.0 as *mut _) };
-        out.into()
+        out.as_ref()
+            .iter()
+            .map(|x| Function(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
-    /// retrieve base class and its inheritors, optionally including abstract classes
-    /// while allowing custom filter.
+    /// retrieve base class and its inheritors, optionally including abstract classes.
     #[inline]
-    pub fn get_classes(
-        &self,
-        base: &Class,
-        mut filter: Option<&mut dyn FnMut(&Class) -> bool>,
-        include_abstract: bool,
-    ) -> Vec<Class> {
-        let mut classes = Array::<*const red::CClass>::default();
+    pub fn get_classes(&self, base: &Class, include_abstract: bool) -> Vec<Class> {
+        let mut out = Array::default();
         unsafe {
             (self.vft().base.get_classes)(
                 &(*self.0)._base,
                 &base.0,
-                &mut classes.0 as *mut _,
+                &mut out.0 as *mut _,
                 None,
                 include_abstract,
             )
         };
-
-        if filter.is_none() {
-            return classes.into();
-        }
-
-        let mut out = Vec::<Class>::with_capacity(classes.0.size as usize);
-        for class in &classes {
-            if !filter.as_mut().unwrap()(class.as_ref()) {
-                continue;
-            }
-            out.push((*class).into());
-        }
-        out
+        out.as_ref()
+            .iter()
+            .map(|x| Class(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
     /// retrieve derived classes, omitting base in the output.
     #[inline]
     pub fn get_derived_classes(&self, base: &Class) -> Vec<Class> {
-        let mut out = Array::<*const red::CClass>::default();
+        let mut out = Array::default();
         unsafe {
             (self.vft().base.get_derived_classes)(&(*self.0)._base, &base.0, &mut out.0 as *mut _)
         };
-        out.into()
+        out.as_ref()
+            .iter()
+            .map(|x| Class(unsafe { std::ptr::read(*x) }))
+            .collect()
     }
 
     #[inline]
