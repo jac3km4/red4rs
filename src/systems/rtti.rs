@@ -11,47 +11,32 @@ impl RttiSystem {
 
     #[inline]
     pub fn get_class(&self, name: CName) -> Option<&Class> {
-        let class = unsafe { (self.vft().base.get_class)(&self.0._base, name.0) };
-        if class.is_null() {
-            return None;
-        }
-        Some(unsafe { &*class.cast::<Class>() })
+        let ty = unsafe { (self.vft().base.get_class)(&self.0._base, name.0) };
+        unsafe { ty.cast::<Class>().as_ref() }
     }
 
     #[inline]
     pub fn get_type(&self, name: CName) -> Option<&Type> {
         let ty = unsafe { (self.vft().base.get_type)(&self.0._base, name.0) };
-        if ty.is_null() {
-            return None;
-        }
-        Some(unsafe { &*ty.cast::<Type>() })
+        unsafe { ty.cast::<Type>().as_ref() }
     }
 
     #[inline]
     pub fn get_enum(&self, name: CName) -> Option<&Enum> {
         let ty = unsafe { (self.vft().base.get_enum)(&self.0._base, name.0) };
-        if ty.is_null() {
-            return None;
-        }
-        Some(unsafe { &*ty.cast::<Enum>() })
+        unsafe { ty.cast::<Enum>().as_ref() }
     }
 
     #[inline]
     pub fn get_bitfield(&self, name: CName) -> Option<&Bitfield> {
         let ty = unsafe { (self.vft().base.get_bitfield)(&self.0._base, name.0) };
-        if ty.is_null() {
-            return None;
-        }
-        Some(unsafe { &*ty.cast::<Bitfield>() })
+        unsafe { ty.cast::<Bitfield>().as_ref() }
     }
 
     #[inline]
     pub fn get_function(&self, name: CName) -> Option<&Function> {
         let ty = unsafe { (self.vft().base.get_function)(&self.0._base, name.0) };
-        if ty.is_null() {
-            return None;
-        }
-        Some(unsafe { &*ty.cast::<Function>() })
+        unsafe { ty.cast::<Function>().as_ref() }
     }
 
     #[inline]
@@ -141,19 +126,13 @@ impl RttiSystem {
     #[inline]
     pub fn get_class_by_script_name(&self, name: CName) -> Option<&Class> {
         let ty = unsafe { (self.vft().base.get_class_by_script_name)(&self.0._base, name.0) };
-        if ty.is_null() {
-            return None;
-        }
-        Some(unsafe { &*ty.cast::<Class>() })
+        unsafe { ty.cast::<Class>().as_ref() }
     }
 
     #[inline]
     pub fn get_enum_by_script_name(&self, name: CName) -> Option<&Enum> {
         let ty = unsafe { (self.vft().base.get_enum_by_script_name)(&self.0._base, name.0) };
-        if ty.is_null() {
-            return None;
-        }
-        Some(unsafe { &*ty.cast::<Enum>() })
+        unsafe { ty.cast::<Enum>().as_ref() }
     }
 
     #[inline]
