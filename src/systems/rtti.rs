@@ -2,11 +2,11 @@ use crate::raw::root::RED4ext as red;
 use crate::{Array, Bitfield, CName, Class, Enum, Function, Type};
 
 #[repr(transparent)]
-pub struct RttiSystem(red::IRTTISystem);
+pub struct RttiSystem(red::CRTTISystem);
 
 impl RttiSystem {
     pub fn get() -> Self {
-        Self(unsafe { std::ptr::read(red::CRTTISystem_Get()) }._base)
+        Self(unsafe { std::ptr::read(red::CRTTISystem_Get()) })
     }
 
     #[inline]
@@ -144,7 +144,7 @@ impl RttiSystem {
 
     #[inline]
     fn vft(&self) -> &IRTTISystemVft {
-        unsafe { &*(self.0.vtable_ as *const IRTTISystemVft) }
+        unsafe { &*(self.0._base.vtable_ as *const IRTTISystemVft) }
     }
 }
 
