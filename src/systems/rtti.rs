@@ -2,16 +2,16 @@ use crate::raw::root::RED4ext as red;
 use crate::{Array, Bitfield, CName, Class, Enum, Function, Type};
 
 #[repr(transparent)]
-pub struct CRTTISystem(*mut red::CRTTISystem);
+pub struct RttiSystem(red::CRTTISystem);
 
-impl CRTTISystem {
+impl RttiSystem {
     pub fn get() -> Self {
-        unsafe { Self(red::CRTTISystem_Get()) }
+        unsafe { Self(std::ptr::read(red::CRTTISystem_Get())) }
     }
 
     #[inline]
     pub fn get_class(&self, name: CName) -> Option<&Class> {
-        let class = unsafe { (self.vft().base.get_class)(&(*self.0)._base, name.0) };
+        let class = unsafe { (self.vft().base.get_class)(&self.0._base, name.0) };
         if class.is_null() {
             return None;
         }
@@ -20,7 +20,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_type(&self, name: CName) -> Option<&Type> {
-        let ty = unsafe { (self.vft().base.get_type)(&(*self.0)._base, name.0) };
+        let ty = unsafe { (self.vft().base.get_type)(&self.0._base, name.0) };
         if ty.is_null() {
             return None;
         }
@@ -29,7 +29,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_enum(&self, name: CName) -> Option<&Enum> {
-        let ty = unsafe { (self.vft().base.get_enum)(&(*self.0)._base, name.0) };
+        let ty = unsafe { (self.vft().base.get_enum)(&self.0._base, name.0) };
         if ty.is_null() {
             return None;
         }
@@ -38,7 +38,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_bitfield(&self, name: CName) -> Option<&Bitfield> {
-        let ty = unsafe { (self.vft().base.get_bitfield)(&(*self.0)._base, name.0) };
+        let ty = unsafe { (self.vft().base.get_bitfield)(&self.0._base, name.0) };
         if ty.is_null() {
             return None;
         }
@@ -47,7 +47,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_function(&self, name: CName) -> Option<&Function> {
-        let ty = unsafe { (self.vft().base.get_function)(&(*self.0)._base, name.0) };
+        let ty = unsafe { (self.vft().base.get_function)(&self.0._base, name.0) };
         if ty.is_null() {
             return None;
         }
@@ -57,7 +57,7 @@ impl CRTTISystem {
     #[inline]
     pub fn get_native_types(&self) -> Vec<Type> {
         let mut out = Array::default();
-        unsafe { (self.vft().base.get_native_types)(&(*self.0)._base, &mut out.0 as *mut _) };
+        unsafe { (self.vft().base.get_native_types)(&self.0._base, &mut out.0 as *mut _) };
         out.as_ref()
             .iter()
             .map(|x| Type(unsafe { std::ptr::read(*x) }))
@@ -67,7 +67,7 @@ impl CRTTISystem {
     #[inline]
     pub fn get_enums(&self) -> Vec<Enum> {
         let mut out = Array::default();
-        unsafe { (self.vft().base.get_enums)(&(*self.0)._base, &mut out.0 as *mut _) };
+        unsafe { (self.vft().base.get_enums)(&self.0._base, &mut out.0 as *mut _) };
         out.as_ref()
             .iter()
             .map(|x| Enum(unsafe { std::ptr::read(*x) }))
@@ -78,7 +78,7 @@ impl CRTTISystem {
     pub fn get_bitfields(&self, scripted_only: bool) -> Vec<Bitfield> {
         let mut out = Array::default();
         unsafe {
-            (self.vft().base.get_bitfields)(&(*self.0)._base, &mut out.0 as *mut _, scripted_only)
+            (self.vft().base.get_bitfields)(&self.0._base, &mut out.0 as *mut _, scripted_only)
         };
         out.as_ref()
             .iter()
@@ -89,7 +89,7 @@ impl CRTTISystem {
     #[inline]
     pub fn get_global_functions(&self) -> Vec<Function> {
         let mut out = Array::default();
-        unsafe { (self.vft().base.get_global_functions)(&(*self.0)._base, &mut out.0 as *mut _) };
+        unsafe { (self.vft().base.get_global_functions)(&self.0._base, &mut out.0 as *mut _) };
         out.as_ref()
             .iter()
             .map(|x| Function(unsafe { std::ptr::read(*x) }))
@@ -99,7 +99,7 @@ impl CRTTISystem {
     #[inline]
     pub fn get_class_functions(&self) -> Vec<Function> {
         let mut out = Array::default();
-        unsafe { (self.vft().base.get_class_functions)(&(*self.0)._base, &mut out.0 as *mut _) };
+        unsafe { (self.vft().base.get_class_functions)(&self.0._base, &mut out.0 as *mut _) };
         out.as_ref()
             .iter()
             .map(|x| Function(unsafe { std::ptr::read(*x) }))
@@ -112,7 +112,7 @@ impl CRTTISystem {
         let mut out = Array::default();
         unsafe {
             (self.vft().base.get_classes)(
-                &(*self.0)._base,
+                &self.0._base,
                 &base.0,
                 &mut out.0 as *mut _,
                 None,
@@ -130,7 +130,7 @@ impl CRTTISystem {
     pub fn get_derived_classes(&self, base: &Class) -> Vec<Class> {
         let mut out = Array::default();
         unsafe {
-            (self.vft().base.get_derived_classes)(&(*self.0)._base, &base.0, &mut out.0 as *mut _)
+            (self.vft().base.get_derived_classes)(&self.0._base, &base.0, &mut out.0 as *mut _)
         };
         out.as_ref()
             .iter()
@@ -140,7 +140,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_class_by_script_name(&self, name: CName) -> Option<&Class> {
-        let ty = unsafe { (self.vft().base.get_class_by_script_name)(&(*self.0)._base, name.0) };
+        let ty = unsafe { (self.vft().base.get_class_by_script_name)(&self.0._base, name.0) };
         if ty.is_null() {
             return None;
         }
@@ -149,7 +149,7 @@ impl CRTTISystem {
 
     #[inline]
     pub fn get_enum_by_script_name(&self, name: CName) -> Option<&Enum> {
-        let ty = unsafe { (self.vft().base.get_enum_by_script_name)(&(*self.0)._base, name.0) };
+        let ty = unsafe { (self.vft().base.get_enum_by_script_name)(&self.0._base, name.0) };
         if ty.is_null() {
             return None;
         }
@@ -158,7 +158,7 @@ impl CRTTISystem {
 
     #[inline]
     fn vft(&self) -> &RTTISystemVft {
-        unsafe { &*((*self.0)._base.vtable_ as *const RTTISystemVft) }
+        unsafe { &*(self.0._base.vtable_ as *const RTTISystemVft) }
     }
 }
 
