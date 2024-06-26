@@ -239,7 +239,6 @@ struct IRTTISystemVft {
         unsafe extern "fastcall" fn(this: *mut RttiSystem, name: red::CName) -> red::CName,
 }
 
-#[repr(transparent)]
 pub struct RTTIRegistrator;
 impl RTTIRegistrator {
     pub fn add(
