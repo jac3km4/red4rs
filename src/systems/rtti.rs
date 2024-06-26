@@ -44,36 +44,36 @@ impl RttiSystem {
     }
 
     #[inline]
-    pub fn get_native_types(&self) -> Array<Type> {
+    pub fn get_native_types(&self) -> Array<&Type> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_native_types)(
                 self,
-                &mut out as *mut Array<Type> as *mut Array<*const Type>,
+                &mut out as *mut Array<&Type> as *mut Array<*const Type>,
             )
         };
         out
     }
 
     #[inline]
-    pub fn get_enums(&self) -> Array<Enum> {
+    pub fn get_enums(&self) -> Array<&Enum> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_enums)(
                 self,
-                &mut out as *mut Array<Enum> as *mut Array<*const Enum>,
+                &mut out as *mut Array<&Enum> as *mut Array<*const Enum>,
             )
         };
         out
     }
 
     #[inline]
-    pub fn get_bitfields(&self, scripted_only: bool) -> Array<Bitfield> {
+    pub fn get_bitfields(&self, scripted_only: bool) -> Array<&Bitfield> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_bitfields)(
                 self,
-                &mut out as *mut Array<Bitfield> as *mut Array<*const Bitfield>,
+                &mut out as *mut Array<&Bitfield> as *mut Array<*const Bitfield>,
                 scripted_only,
             )
         };
@@ -81,24 +81,24 @@ impl RttiSystem {
     }
 
     #[inline]
-    pub fn get_global_functions(&self) -> Array<Function> {
+    pub fn get_global_functions(&self) -> Array<&Function> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_global_functions)(
                 self,
-                &mut out as *mut Array<Function> as *mut Array<*const Function>,
+                &mut out as *mut Array<&Function> as *mut Array<*const Function>,
             )
         };
         out
     }
 
     #[inline]
-    pub fn get_class_functions(&self) -> Array<Function> {
+    pub fn get_class_functions(&self) -> Array<&Function> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_class_functions)(
                 self,
-                &mut out as *mut Array<Function> as *mut Array<*const Function>,
+                &mut out as *mut Array<&Function> as *mut Array<*const Function>,
             )
         };
         out
@@ -106,13 +106,13 @@ impl RttiSystem {
 
     /// retrieve base class and its inheritors, optionally including abstract classes.
     #[inline]
-    pub fn get_classes(&self, base: &Class, include_abstract: bool) -> Array<Class> {
+    pub fn get_classes(&self, base: &Class, include_abstract: bool) -> Array<&Class> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_classes)(
                 self,
                 base,
-                &mut out as *mut Array<Class> as *mut Array<*const Class>,
+                &mut out as *mut Array<&Class> as *mut Array<*const Class>,
                 None,
                 include_abstract,
             )
@@ -122,13 +122,13 @@ impl RttiSystem {
 
     /// retrieve derived classes, omitting base in the output.
     #[inline]
-    pub fn get_derived_classes(&self, base: &Class) -> Array<Class> {
+    pub fn get_derived_classes(&self, base: &Class) -> Array<&Class> {
         let mut out = Array::default();
         unsafe {
             (self.vft().get_derived_classes)(
                 self,
                 base,
-                &mut out as *mut Array<Class> as *mut Array<*const Class>,
+                &mut out as *mut Array<&Class> as *mut Array<*const Class>,
             )
         };
         out
