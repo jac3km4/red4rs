@@ -482,12 +482,6 @@ impl StackFrame {
 #[repr(transparent)]
 pub struct Function(red::CBaseFunction);
 
-impl Clone for red::CBaseFunction {
-    fn clone(&self) -> Self {
-        unsafe { ptr::read(self) }
-    }
-}
-
 impl Function {
     #[inline]
     pub fn name(&self) -> CName {
@@ -624,12 +618,6 @@ impl Class {
             .chain(self.base_iter())
             .flat_map(Class::properties)
             .copied()
-    }
-}
-
-impl Clone for red::CClass {
-    fn clone(&self) -> Self {
-        unsafe { ptr::read(self) }
     }
 }
 
@@ -783,12 +771,6 @@ impl Property {
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Type(red::CBaseRTTIType);
-
-impl Clone for red::CBaseRTTIType {
-    fn clone(&self) -> Self {
-        unsafe { ptr::read(self) }
-    }
-}
 
 impl Type {
     #[inline]
@@ -976,15 +958,9 @@ fn truncated_cstring(mut s: std::string::String) -> ffi::CString {
     ffi::CString::new(s).unwrap()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct Enum(red::CEnum);
-
-impl Clone for red::CEnum {
-    fn clone(&self) -> Self {
-        unsafe { Self::new(self.name, self.actualSize.try_into().unwrap(), self.flags) }
-    }
-}
 
 impl Enum {
     #[inline]
@@ -1024,11 +1000,5 @@ impl Bitfield {
             .filter(|x| x.hash != 0)
             .map(CName)
             .collect::<Vec<_>>()
-    }
-}
-
-impl Clone for red::CBitfield {
-    fn clone(&self) -> Self {
-        unsafe { Self::new(self.name, self.actualSize.try_into().unwrap(), self.flags) }
     }
 }
