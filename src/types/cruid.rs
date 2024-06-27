@@ -74,7 +74,8 @@ impl From<crate::types::CName> for Cruid {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{CName, Cruid};
+    use super::Cruid;
+    use crate::types::CName;
 
     #[test]
     fn conversion() {

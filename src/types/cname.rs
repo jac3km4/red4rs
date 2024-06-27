@@ -43,6 +43,12 @@ impl From<u64> for CName {
     }
 }
 
+impl From<CName> for u64 {
+    fn from(CName(red::CName { hash }): CName) -> Self {
+        hash
+    }
+}
+
 impl std::fmt::Display for CName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
