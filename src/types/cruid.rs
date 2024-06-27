@@ -66,16 +66,15 @@ impl From<Cruid> for i64 {
 }
 
 #[cfg(not(test))] // only available in-game
-impl From<crate::CName> for Cruid {
-    fn from(value: crate::CName) -> Self {
+impl From<crate::types::CName> for Cruid {
+    fn from(value: crate::types::CName) -> Self {
         Self::new(value.as_str())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::types::Cruid;
-    use crate::CName;
+    use crate::types::{CName, Cruid};
 
     #[test]
     fn conversion() {
