@@ -4,7 +4,7 @@ use std::{mem, ops, ptr};
 use once_cell::race::OnceNonZeroUsize;
 use sealed::sealed;
 
-use super::{GlobalFunction, IScriptable};
+use super::{GlobalFunction, IScriptable, Method, Property, StaticMethod};
 use crate::raw::root::RED4ext as red;
 use crate::raw::root::RED4ext::Memory::AllocationResult;
 use crate::{fnv1a32, VoidPtr};
@@ -68,6 +68,18 @@ impl Poolable for GlobalFunction {
     type Pool = FunctionPool;
 }
 
+impl Poolable for Method {
+    type Pool = FunctionPool;
+}
+
+impl Poolable for StaticMethod {
+    type Pool = FunctionPool;
+}
+
+impl Poolable for Property {
+    type Pool = PropertyPool;
+}
+
 impl Poolable for IScriptable {
     type Pool = ScriptPool;
 }
@@ -90,15 +102,13 @@ impl<T: Poolable> PoolableOps for T {
     fn alloc() -> Option<PoolRef<mem::MaybeUninit<Self>>> {
         let mut result = AllocationResult::default();
         let size = mem::size_of::<Self>();
-
         unsafe {
             let alloc = crate::fn_from_hash!(
                 Memory_Vault_Alloc,
                 unsafe extern "C" fn(*mut red::Memory::Vault, *mut AllocationResult, u32)
             );
-            alloc(T::Pool::vault(), &mut result, size as u32);
+            alloc(T::Pool::vault(), &mut result, size as _);
         };
-
         (!result.memory.is_null()).then(|| PoolRef(result.memory.cast::<mem::MaybeUninit<Self>>()))
     }
 
@@ -107,14 +117,13 @@ impl<T: Poolable> PoolableOps for T {
             memory: ptr.0 as VoidPtr,
             size: 0,
         };
-
         unsafe {
             let free = crate::fn_from_hash!(
                 Memory_Vault_Free,
                 unsafe extern "C" fn(*mut red::Memory::Vault, *mut AllocationResult)
             );
             free(T::Pool::vault(), &mut alloc);
-        }
+        };
     }
 }
 
@@ -125,7 +134,7 @@ pub trait Pool {
     fn vault() -> *mut red::Memory::Vault {
         static VAULT: OnceNonZeroUsize = OnceNonZeroUsize::new();
         VAULT
-            .get_or_try_init(|| unsafe { get_pool(fnv1a32(Self::NAME)) }.ok_or(()))
+            .get_or_try_init(|| unsafe { vault_get(fnv1a32(Self::NAME)) }.ok_or(()))
             .expect("should resolve vault")
             .get() as _
     }
@@ -139,6 +148,15 @@ impl Pool for FunctionPool {
     const NAME: &'static str = "PoolRTTIFunction";
 }
 
+#[derive(Debug)]
+pub struct PropertyPool;
+
+#[sealed]
+impl Pool for PropertyPool {
+    const NAME: &'static str = "PoolRTTIProperty";
+}
+
+#[derive(Debug)]
 pub struct RttiPool;
 
 #[sealed]
@@ -146,6 +164,7 @@ impl Pool for RttiPool {
     const NAME: &'static str = "PoolRTTI";
 }
 
+#[derive(Debug)]
 pub struct ScriptPool;
 
 #[sealed]
@@ -153,7 +172,9 @@ impl Pool for ScriptPool {
     const NAME: &'static str = "PoolScript";
 }
 
-unsafe fn get_pool(handle: u32) -> Option<NonZero<usize>> {
+// the vault is cached, so this function is called only once per pool, inlining is unproductive
+#[inline(never)]
+unsafe fn vault_get(handle: u32) -> Option<NonZero<usize>> {
     let vault = &mut *red::Memory::Vault::Get();
 
     vault.poolRegistry.nodesLock.lock_shared();

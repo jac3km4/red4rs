@@ -1,24 +1,27 @@
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use sealed::sealed;
 
-use super::{CName, IScriptable, Type, ValuePtr};
+use super::{CName, IScriptable, Type};
 use crate::raw::root::RED4ext as red;
+use crate::repr::NativeRepr;
 use crate::systems::RttiSystem;
+use crate::VoidPtr;
 
 pub unsafe trait ScriptClass: Sized {
     type Kind: ClassKind<Self>;
 
     const CLASS_NAME: &'static str;
+    const NATIVE_NAME: &'static str = Self::CLASS_NAME;
 }
 
 #[sealed]
 pub trait ClassKind<T> {
-    type ScriptedFields;
-    type NativeFields: AsRef<IScriptable> + AsMut<IScriptable>;
+    type NativeType: AsRef<IScriptable> + AsMut<IScriptable>;
 
-    fn get(inst: &Self::NativeFields) -> &T;
-    fn get_mut(inst: &mut Self::NativeFields) -> &mut T;
+    fn get(inst: &Self::NativeType) -> &T;
+    fn get_mut(inst: &mut Self::NativeType) -> &mut T;
 }
 
 #[derive(Debug)]
@@ -26,16 +29,15 @@ pub struct Scripted;
 
 #[sealed]
 impl<T> ClassKind<T> for Scripted {
-    type NativeFields = IScriptable;
-    type ScriptedFields = T;
+    type NativeType = IScriptable;
 
     #[inline]
-    fn get(inst: &Self::NativeFields) -> &T {
+    fn get(inst: &Self::NativeType) -> &T {
         unsafe { &*inst.fields().as_ptr().cast::<T>() }
     }
 
     #[inline]
-    fn get_mut(inst: &mut Self::NativeFields) -> &mut T {
+    fn get_mut(inst: &mut Self::NativeType) -> &mut T {
         unsafe { &mut *inst.fields().as_ptr().cast::<T>() }
     }
 }
@@ -45,21 +47,20 @@ pub struct Native;
 
 #[sealed]
 impl<T: AsRef<IScriptable> + AsMut<IScriptable>> ClassKind<T> for Native {
-    type NativeFields = T;
-    type ScriptedFields = ();
+    type NativeType = T;
 
     #[inline]
-    fn get(inst: &Self::NativeFields) -> &T {
+    fn get(inst: &Self::NativeType) -> &T {
         inst
     }
 
     #[inline]
-    fn get_mut(inst: &mut Self::NativeFields) -> &mut T {
+    fn get_mut(inst: &mut Self::NativeType) -> &mut T {
         inst
     }
 }
 
-type NativeType<T> = <<T as ScriptClass>::Kind as ClassKind<T>>::NativeFields;
+type NativeType<T> = <<T as ScriptClass>::Kind as ClassKind<T>>::NativeType;
 
 #[repr(transparent)]
 pub struct Ref<T: ScriptClass>(BaseRef<NativeType<T>>);
@@ -71,10 +72,9 @@ impl<T: ScriptClass> Ref<T> {
     }
 
     pub fn new_with(init: impl FnOnce(&mut T)) -> Option<Self> {
-        let class = RttiSystem::get().get_class(CName::new(T::CLASS_NAME))?;
-        let inst = class.instantiate().as_ptr() as *mut T;
+        let class = RttiSystem::get().get_class(CName::new(T::NATIVE_NAME))?;
         let mut this = Self::default();
-        Self::ctor(&mut this, inst);
+        Self::ctor(&mut this, class.instantiate().as_ptr().cast::<T>());
 
         init(T::Kind::get_mut(this.0.instance_mut()?));
         Some(this)
@@ -82,14 +82,19 @@ impl<T: ScriptClass> Ref<T> {
 
     fn ctor(this: *mut Self, data: *mut T) {
         unsafe {
-            let ctor = crate::fn_from_hash!(Handle_ctor, unsafe extern "C" fn(*mut Self, *mut T));
-            ctor(this, data);
+            let ctor = crate::fn_from_hash!(Handle_ctor, unsafe extern "C" fn(VoidPtr, VoidPtr));
+            ctor(this as *mut _ as VoidPtr, data as *mut _ as VoidPtr);
         }
     }
 
     #[inline]
     pub fn fields(&self) -> Option<&T> {
         Some(T::Kind::get(self.0.instance()?))
+    }
+
+    #[inline]
+    pub fn instance(&self) -> Option<&NativeType<T>> {
+        self.0.instance()
     }
 
     #[inline]
@@ -226,9 +231,8 @@ impl<T> BaseRef<T> {
             return;
         }
         unsafe {
-            let dec_weak =
-                crate::fn_from_hash!(Handle_DecWeakRef, unsafe extern "C" fn(&mut BaseRef<T>));
-            dec_weak(self);
+            let dec_weak = crate::fn_from_hash!(Handle_DecWeakRef, unsafe extern "C" fn(VoidPtr));
+            dec_weak(self as *mut _ as VoidPtr);
         }
     }
 
@@ -274,9 +278,24 @@ impl RefCount {
 
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct ScriptRef<T>(red::ScriptRef<T>);
+pub struct ScriptRef<'a, T>(red::ScriptRef<T>, PhantomData<&'a mut T>);
 
-impl<T> ScriptRef<T> {
+impl<'a, T: NativeRepr> ScriptRef<'a, T> {
+    pub fn new(val: &'a mut T) -> Option<Self> {
+        let inner = RttiSystem::get().get_type(CName::new(T::NATIVE_NAME))?;
+        let ref_ = red::ScriptRef {
+            innerType: inner.as_raw() as *const _ as *mut red::CBaseRTTIType,
+            ref_: val as *mut T,
+            ..Default::default()
+        };
+        Some(Self(ref_, PhantomData))
+    }
+
+    #[inline]
+    pub fn value(&self) -> Option<&T> {
+        unsafe { self.0.ref_.as_ref() }
+    }
+
     #[inline]
     pub fn inner_type(&self) -> &Type {
         unsafe { &*(self.0.innerType.cast::<Type>()) }
@@ -285,14 +304,5 @@ impl<T> ScriptRef<T> {
     #[inline]
     pub fn is_defined(&self) -> bool {
         !self.0.ref_.is_null()
-    }
-}
-
-pub type ScriptRefAny = ScriptRef<std::os::raw::c_void>;
-
-impl ScriptRefAny {
-    #[inline]
-    pub fn value(&self) -> ValuePtr {
-        ValuePtr::new(self.0.ref_)
     }
 }

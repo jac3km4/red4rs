@@ -4,11 +4,12 @@ use std::{fmt, mem, ops, ptr, slice};
 
 use super::IAllocator;
 use crate::raw::root::RED4ext as red;
+use crate::VoidPtr;
 
 #[repr(transparent)]
-pub struct Array<T>(red::DynArray<T>);
+pub struct RedArray<T>(red::DynArray<T>);
 
-impl<T> Array<T> {
+impl<T> RedArray<T> {
     #[inline]
     pub const fn new() -> Self {
         Self(red::DynArray {
@@ -66,32 +67,32 @@ impl<T> Array<T> {
         self.realloc(expected.max(self.capacity() + self.capacity() / 2));
     }
 
-    fn realloc(&mut self, capacity: u32) {
+    fn realloc(&mut self, cap: u32) {
         let size = mem::size_of::<T>();
         let align = mem::align_of::<T>().max(8);
         unsafe {
             let realloc = crate::fn_from_hash!(
                 DynArray_Realloc,
-                unsafe extern "C" fn(*mut Array<T>, u32, u32, u32, usize)
+                unsafe extern "C" fn(VoidPtr, u32, u32, u32, usize)
             );
-            realloc(self, capacity, size as u32, align as u32, 0);
+            realloc(self as *mut _ as VoidPtr, cap, size as u32, align as u32, 0);
         };
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for Array<T> {
+impl<T: fmt::Debug> fmt::Debug for RedArray<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<T> Default for Array<T> {
+impl<T> Default for RedArray<T> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T> ops::Deref for Array<T> {
+impl<T> ops::Deref for RedArray<T> {
     type Target = [T];
 
     #[inline]
@@ -102,7 +103,7 @@ impl<T> ops::Deref for Array<T> {
     }
 }
 
-impl<T> ops::DerefMut for Array<T> {
+impl<T> ops::DerefMut for RedArray<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut [T] {
         (!self.0.entries.is_null())
@@ -111,21 +112,21 @@ impl<T> ops::DerefMut for Array<T> {
     }
 }
 
-impl<T> AsRef<[T]> for Array<T> {
+impl<T> AsRef<[T]> for RedArray<T> {
     #[inline]
     fn as_ref(&self) -> &[T] {
         self
     }
 }
 
-impl<T> AsMut<[T]> for Array<T> {
+impl<T> AsMut<[T]> for RedArray<T> {
     #[inline]
     fn as_mut(&mut self) -> &mut [T] {
         self
     }
 }
 
-impl<'a, T> IntoIterator for &'a Array<T> {
+impl<'a, T> IntoIterator for &'a RedArray<T> {
     type IntoIter = slice::Iter<'a, T>;
     type Item = &'a T;
 
@@ -135,7 +136,7 @@ impl<'a, T> IntoIterator for &'a Array<T> {
     }
 }
 
-impl<T> IntoIterator for Array<T> {
+impl<T> IntoIterator for RedArray<T> {
     type IntoIter = IntoIter<T>;
     type Item = T;
 
@@ -155,7 +156,7 @@ impl<T> IntoIterator for Array<T> {
     }
 }
 
-impl<T> FromIterator<T> for Array<T> {
+impl<T> FromIterator<T> for RedArray<T> {
     #[inline]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array = Self::new();
@@ -164,7 +165,7 @@ impl<T> FromIterator<T> for Array<T> {
     }
 }
 
-impl<T> Extend<T> for Array<T> {
+impl<T> Extend<T> for RedArray<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         let iter = iter.into_iter();
         let (lower, _) = iter.size_hint();
@@ -175,7 +176,7 @@ impl<T> Extend<T> for Array<T> {
     }
 }
 
-impl<T> Drop for Array<T> {
+impl<T> Drop for RedArray<T> {
     #[inline]
     fn drop(&mut self) {
         if self.capacity() == 0 {
