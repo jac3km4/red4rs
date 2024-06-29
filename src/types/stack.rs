@@ -1,7 +1,10 @@
+use std::marker::PhantomData;
 use std::{iter, ptr};
 
-use super::{Function, IScriptable, Instr, ValueContainer, OPCODE_SIZE};
+use super::{CName, Function, IScriptable, Instr, Type, ValueContainer, OPCODE_SIZE};
 use crate::raw::root::RED4ext as red;
+use crate::repr::NativeRepr;
+use crate::systems::RttiSystem;
 use crate::VoidPtr;
 
 #[derive(Debug)]
@@ -44,12 +47,27 @@ impl StackFrame {
         ValueContainer::new(self.0.params)
     }
 
+    pub unsafe fn instr_at<I: Instr>(&self, offset: isize) -> Option<&I> {
+        if self.0.code.is_null() {
+            return None;
+        }
+        let ptr = self.0.code.offset(offset);
+        (ptr.read() as u8 == I::OPCODE).then(|| &*(ptr.offset(OPCODE_SIZE) as *const I))
+    }
+
     #[inline]
     pub unsafe fn step(&mut self) {
         self.0.code = unsafe { self.0.code.offset(OPCODE_SIZE) };
     }
 
-    pub unsafe fn get_arg(&mut self, ptr: VoidPtr) {
+    #[inline]
+    pub unsafe fn get_arg<T: Default>(&mut self) -> T {
+        let mut out = T::default();
+        self.read_arg(&mut out as *mut T as VoidPtr);
+        out
+    }
+
+    unsafe fn read_arg(&mut self, ptr: VoidPtr) {
         self.0.data = ptr::null_mut();
         self.0.dataType = ptr::null_mut();
         self.0.currentParam += 1;
@@ -59,12 +77,29 @@ impl StackFrame {
             red::OpcodeHandlers::Run(opcode, self.0.context, &mut self.0, ptr, ptr::null_mut());
         }
     }
+}
 
-    pub unsafe fn instr_at<I: Instr>(&self, offset: isize) -> Option<&I> {
-        if self.0.code.is_null() {
-            return None;
-        }
-        let ptr = self.0.code.offset(offset);
-        (ptr.read() as u8 == I::OPCODE).then(|| &*(ptr.offset(OPCODE_SIZE) as *const I))
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct StackArg<'a>(red::CStackType, PhantomData<&'a ()>);
+
+impl<'a> StackArg<'a> {
+    pub fn new<A: NativeRepr>(val: &'a mut A) -> Option<Self> {
+        let type_ = RttiSystem::get().get_type(CName::new(A::NATIVE_NAME))?;
+        let inner = red::CStackType {
+            type_: type_.as_raw() as *const _ as *mut red::CBaseRTTIType,
+            value: val as *const A as VoidPtr,
+        };
+        Some(Self(inner, PhantomData))
+    }
+
+    #[inline]
+    pub fn type_(&self) -> Option<&'static Type> {
+        unsafe { self.0.type_.cast::<Type>().as_ref() }
+    }
+
+    #[inline]
+    pub(super) fn as_raw_mut(&mut self) -> &mut red::CStackType {
+        &mut self.0
     }
 }

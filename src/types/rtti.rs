@@ -1,14 +1,16 @@
 use std::ffi::CStr;
-use std::{iter, mem};
+use std::{iter, mem, ptr};
 
 use super::{
-    Array, CName, CNamePool, IAllocator, Native, PoolRef, PoolableOps, ScriptClass, ScriptRefAny,
-    StackFrame,
+    CName, CNamePool, IAllocator, Native, PoolRef, PoolableOps, RedArray, RedHashMap, RedString,
+    ScriptClass, StackArg, StackFrame,
 };
+use crate::invocable::{Args, InvokeError};
 use crate::raw::root::RED4ext as red;
+use crate::repr::{FromRepr, NativeRepr};
 use crate::VoidPtr;
 
-pub type FunctionHandler<R> = extern "C" fn(Option<&IScriptable>, &mut StackFrame, &mut R, i64);
+pub type FunctionHandler<R> = extern "C" fn(Option<&IScriptable>, &mut StackFrame, R, i64);
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -22,6 +24,11 @@ impl Type {
             return CName::undefined();
         }
         CName::from_raw(unsafe { (self.vft().tail.CBaseRTTIType_GetName)(&self.0) })
+    }
+
+    #[inline]
+    pub(crate) fn as_raw(&self) -> &red::CBaseRTTIType {
+        &self.0
     }
 
     #[inline]
@@ -57,8 +64,8 @@ impl Type {
         }
     }
 
-    pub unsafe fn to_string(&self, value: ValuePtr) -> String {
-        let mut str = String::new();
+    pub unsafe fn to_string(&self, value: ValuePtr) -> RedString {
+        let mut str = RedString::new();
         unsafe {
             (self.vft().tail.CBaseRTTIType_ToString)(
                 &self.0,
@@ -123,13 +130,40 @@ pub struct Class(red::CClass);
 
 impl Class {
     #[inline]
+    pub fn new(name: &CStr, size: u32) -> Self {
+        let name = CNamePool::add_cstr(name);
+        Self(unsafe { red::CClass::new(name.to_raw(), size, Default::default()) })
+    }
+
+    #[inline]
+    pub(super) fn as_raw(&self) -> &red::CClass {
+        &self.0
+    }
+
+    #[inline]
     pub fn name(&self) -> CName {
         CName::from_raw(self.0.name)
     }
 
     #[inline]
-    pub fn properties(&self) -> &Array<&Property> {
+    pub fn properties(&self) -> &RedArray<&Property> {
         unsafe { mem::transmute(&self.0.props) }
+    }
+
+    #[inline]
+    pub fn methods(&self) -> &RedArray<&Method> {
+        unsafe { mem::transmute(&self.0.funcs) }
+    }
+
+    #[inline]
+    pub fn method_map(&self) -> &RedHashMap<CName, &Method> {
+        unsafe { mem::transmute(&self.0.funcsByName) }
+    }
+
+    pub fn get_method(&self, name: CName) -> Option<&Method> {
+        iter::once(self)
+            .chain(self.base_iter())
+            .find_map(|class| class.method_map().get(&name).copied())
     }
 
     #[inline]
@@ -155,6 +189,27 @@ impl Class {
     }
 
     #[inline]
+    pub fn add_method(&mut self, func: PoolRef<Method>) {
+        self.methods_mut().push(&func);
+        // RTTI takes ownership of it from now on
+        mem::forget(func);
+    }
+
+    #[inline]
+    pub fn add_static_method(&mut self, func: PoolRef<StaticMethod>) {
+        self.static_methods_mut().push(&func);
+        // RTTI takes ownership of it from now on
+        mem::forget(func);
+    }
+
+    #[inline]
+    pub fn add_property(&mut self, prop: PoolRef<Property>) {
+        self.properties_mut().push(&prop);
+        // RTTI takes ownership of it from now on
+        mem::forget(prop);
+    }
+
+    #[inline]
     pub fn as_type(&self) -> &Type {
         unsafe { &*(self as *const _ as *const Type) }
     }
@@ -162,6 +217,21 @@ impl Class {
     #[inline]
     pub fn as_type_mut(&mut self) -> &mut Type {
         unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+
+    #[inline]
+    fn methods_mut(&mut self) -> &mut RedArray<&Method> {
+        unsafe { mem::transmute(&mut self.0.funcs) }
+    }
+
+    #[inline]
+    fn static_methods_mut(&mut self) -> &mut RedArray<&StaticMethod> {
+        unsafe { mem::transmute(&mut self.0.staticFuncs) }
+    }
+
+    #[inline]
+    fn properties_mut(&mut self) -> &mut RedArray<&Property> {
+        unsafe { mem::transmute(&mut self.0.props) }
     }
 }
 
@@ -189,13 +259,18 @@ impl Function {
     }
 
     #[inline]
-    pub fn locals(&self) -> &Array<&Property> {
+    pub fn locals(&self) -> &RedArray<&Property> {
         unsafe { mem::transmute(&self.0.localVars) }
     }
 
     #[inline]
-    pub fn params(&self) -> &Array<&Property> {
+    pub fn params(&self) -> &RedArray<&Property> {
         unsafe { mem::transmute(&self.0.params) }
+    }
+
+    #[inline]
+    pub fn return_value(&self) -> &Property {
+        unsafe { &*(self.0.returnType.cast::<Property>()) }
     }
 
     #[inline]
@@ -231,16 +306,70 @@ impl Function {
         self.0.flags.set_isStatic(is_static as u32)
     }
 
+    pub fn execute<A, R>(&self, ctx: Option<&IScriptable>, mut args: A) -> Result<R, InvokeError>
+    where
+        A: Args,
+        R: FromRepr,
+        R::Repr: Default,
+    {
+        let mut ret = R::Repr::default();
+        let mut out =
+            StackArg::new(&mut ret).ok_or(InvokeError::UnresolvedType(R::Repr::NATIVE_NAME))?;
+        let arr = args.to_array()?;
+        self.validate_stack(arr.as_ref(), &out)?;
+        self.execute_internal(ctx, arr.as_ref(), &mut out)?;
+        Ok(R::from_repr(ret))
+    }
+
+    #[inline(never)]
+    fn validate_stack(&self, args: &[StackArg<'_>], ret: &StackArg<'_>) -> Result<(), InvokeError> {
+        if self.params().len() != args.len() as u32 {
+            return Err(InvokeError::InvalidArgCount(self.params().len()));
+        }
+
+        for (index, (param, arg)) in self.params().iter().zip(args.iter()).enumerate() {
+            if !arg.type_().is_some_and(|ty| ptr::eq(ty, param.type_())) {
+                let expected = param.type_().name().as_str();
+                return Err(InvokeError::ArgMismatch { expected, index });
+            }
+        }
+
+        if !ret
+            .type_()
+            .is_some_and(|ty| ptr::eq(ty, self.return_value().type_()))
+        {
+            let expected = self.return_value().type_().name().as_str();
+            return Err(InvokeError::ReturnMismatch { expected });
+        }
+
+        Ok(())
+    }
+
+    fn execute_internal(
+        &self,
+        ctx: Option<&IScriptable>,
+        args: &[StackArg<'_>],
+        ret: &mut StackArg<'_>,
+    ) -> Result<(), InvokeError> {
+        let success = unsafe {
+            let mut stack = red::CStack::new(
+                mem::transmute::<Option<&IScriptable>, VoidPtr>(ctx),
+                mem::transmute::<*const StackArg<'_>, *mut red::CStackType>(args.as_ptr()),
+                args.len() as u32,
+                ret.as_raw_mut(),
+            );
+            red::CBaseFunction_Execute(&self.0 as *const _ as *mut red::CBaseFunction, &mut stack)
+        };
+        if success {
+            Ok(())
+        } else {
+            Err(InvokeError::ExecutionFailed)
+        }
+    }
+
     #[inline]
     fn vft(&self) -> &FunctionVft {
         unsafe { &*(self.0._base.vtable_.cast::<FunctionVft>()) }
-    }
-}
-
-impl Drop for Function {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe { (self.vft().destruct)(self) };
     }
 }
 
@@ -293,9 +422,179 @@ impl Drop for GlobalFunction {
 
 #[derive(Debug)]
 #[repr(transparent)]
+pub struct Method(red::CClassFunction);
+
+impl Method {
+    pub fn new<R>(
+        full_name: &CStr,
+        short_name: &CStr,
+        class: &Class,
+        handler: FunctionHandler<R>,
+    ) -> PoolRef<Self> {
+        let mut func = Method::alloc().expect("should allocate a Method");
+        let full_name = CNamePool::add_cstr(full_name);
+        let short_name = CNamePool::add_cstr(short_name);
+
+        Self::ctor(
+            func.as_mut_ptr(),
+            class,
+            full_name,
+            short_name,
+            handler as _,
+        );
+        unsafe { func.assume_init() }
+    }
+
+    fn ctor(
+        ptr: *mut Self,
+        class: *const Class,
+        full_name: CName,
+        short_name: CName,
+        handler: VoidPtr,
+    ) {
+        unsafe {
+            let ctor = crate::fn_from_hash!(
+                CClassFunction_ctor,
+                unsafe extern "C" fn(
+                    *mut Method,
+                    *const Class,
+                    CName,
+                    CName,
+                    VoidPtr,
+                    red::CBaseFunction_Flags,
+                )
+            );
+            ctor(
+                ptr,
+                class,
+                full_name,
+                short_name,
+                handler,
+                Default::default(),
+            );
+        };
+    }
+
+    #[inline]
+    pub fn as_function(&self) -> &Function {
+        unsafe { &*(self as *const _ as *const Function) }
+    }
+
+    #[inline]
+    pub fn as_function_mut(&mut self) -> &mut Function {
+        unsafe { &mut *(self as *mut _ as *mut Function) }
+    }
+}
+
+impl Drop for Method {
+    #[inline]
+    fn drop(&mut self) {
+        let f = self.as_function_mut();
+        unsafe { (f.vft().destruct)(f) };
+    }
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct StaticMethod(red::CClassStaticFunction);
+
+impl StaticMethod {
+    pub fn new<R>(
+        full_name: &CStr,
+        short_name: &CStr,
+        class: &Class,
+        handler: FunctionHandler<R>,
+    ) -> PoolRef<Self> {
+        let mut func = StaticMethod::alloc().expect("should allocate a StaticMethod");
+        let full_name = CNamePool::add_cstr(full_name);
+        let short_name = CNamePool::add_cstr(short_name);
+
+        Self::ctor(
+            func.as_mut_ptr(),
+            class,
+            full_name,
+            short_name,
+            handler as _,
+        );
+        unsafe { func.assume_init() }
+    }
+
+    fn ctor(
+        ptr: *mut Self,
+        class: *const Class,
+        full_name: CName,
+        short_name: CName,
+        handler: VoidPtr,
+    ) {
+        unsafe {
+            let ctor = crate::fn_from_hash!(
+                CClassStaticFunction_ctor,
+                unsafe extern "C" fn(
+                    *mut StaticMethod,
+                    *const Class,
+                    CName,
+                    CName,
+                    VoidPtr,
+                    red::CBaseFunction_Flags,
+                )
+            );
+            ctor(
+                ptr,
+                class,
+                full_name,
+                short_name,
+                handler,
+                Default::default(),
+            );
+        };
+    }
+
+    #[inline]
+    pub fn as_function(&self) -> &Function {
+        unsafe { &*(self as *const _ as *const Function) }
+    }
+
+    #[inline]
+    pub fn as_function_mut(&mut self) -> &mut Function {
+        unsafe { &mut *(self as *mut _ as *mut Function) }
+    }
+}
+
+impl Drop for StaticMethod {
+    #[inline]
+    fn drop(&mut self) {
+        let f = self.as_function_mut();
+        unsafe { (f.vft().destruct)(f) };
+    }
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
 pub struct Property(red::CProperty);
 
 impl Property {
+    pub fn new(
+        name: &CStr,
+        group: &CStr,
+        type_: &Type,
+        parent: &Class,
+        offset: u32,
+    ) -> PoolRef<Self> {
+        let mut prop = Property::alloc().expect("should allocate a Property");
+        let name = CNamePool::add_cstr(name);
+        let group = CNamePool::add_cstr(group);
+
+        let ptr = prop.as_mut_ptr();
+        unsafe {
+            (*ptr).0.name = name.to_raw();
+            (*ptr).0.group = group.to_raw();
+            (*ptr).0.type_ = type_.as_raw() as *const _ as *mut red::CBaseRTTIType;
+            (*ptr).0.parent = parent.as_raw() as *const _ as *mut red::CClass;
+            (*ptr).0.valueOffset = offset;
+            prop.assume_init()
+        }
+    }
+
     #[inline]
     pub fn name(&self) -> CName {
         CName::from_raw(self.0.name)
@@ -377,7 +676,7 @@ impl Enum {
     }
 
     #[inline]
-    pub fn variant_names(&self) -> &Array<CName> {
+    pub fn variant_names(&self) -> &RedArray<CName> {
         unsafe { mem::transmute(&self.0.aliasList) }
     }
 
@@ -445,9 +744,7 @@ impl IScriptable {
 
     #[inline]
     pub fn fields(&self) -> ValueContainer {
-        ValueContainer(unsafe {
-            red::IScriptable_GetValueHolder(&self.0 as *const _ as *mut red::IScriptable)
-        })
+        ValueContainer(self.0.valueHolder)
     }
 }
 
@@ -491,10 +788,6 @@ impl ValueContainer {
 pub struct ValuePtr(VoidPtr);
 
 impl ValuePtr {
-    pub(super) fn new(ptr: VoidPtr) -> Self {
-        Self(ptr)
-    }
-
     pub unsafe fn unwrap_ref(&self) -> Option<&IScriptable> {
         let ptr = self.0 as *mut red::SharedPtrBase<red::IScriptable>;
         let inst = (*ptr).instance;
@@ -503,14 +796,6 @@ impl ValuePtr {
             return None;
         };
         Some(&*(inst as *const IScriptable))
-    }
-
-    pub unsafe fn unwrap_script_ref(&self) -> Option<ValuePtr> {
-        let ptr = &*(self.0 as *mut ScriptRefAny);
-        if !ptr.is_defined() {
-            return None;
-        };
-        Some(ptr.value())
     }
 
     #[inline]
