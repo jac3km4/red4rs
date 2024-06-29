@@ -39,6 +39,29 @@ impl GameTime {
         self.0.seconds = self.0.seconds.saturating_add(seconds);
     }
 
+    pub fn sub_days(&mut self, days: u32) {
+        self.0.seconds = self.0.seconds.saturating_sub(
+            days.saturating_mul(24)
+                .saturating_mul(60)
+                .saturating_mul(60),
+        );
+    }
+
+    pub fn sub_hours(&mut self, hours: u32) {
+        self.0.seconds = self
+            .0
+            .seconds
+            .saturating_sub(hours.saturating_mul(60).saturating_mul(60));
+    }
+
+    pub fn sub_minutes(&mut self, minutes: u32) {
+        self.0.seconds = self.0.seconds.saturating_sub(minutes.saturating_mul(60));
+    }
+
+    pub fn sub_seconds(&mut self, seconds: u32) {
+        self.0.seconds = self.0.seconds.saturating_sub(seconds);
+    }
+
     pub fn day(&self) -> u32 {
         unsafe { self.0.GetDay() }
     }
@@ -98,6 +121,73 @@ impl From<u32> for GameTime {
 impl From<GameTime> for u32 {
     fn from(value: GameTime) -> Self {
         value.0.seconds
+    }
+}
+
+#[cfg(feature = "time")]
+impl TryFrom<GameTime> for time::Time {
+    type Error = time::error::ComponentRange;
+
+    fn try_from(value: GameTime) -> Result<Self, Self::Error> {
+        Self::from_hms(
+            value.hour() as u8,
+            value.minute() as u8,
+            value.second() as u8,
+        )
+    }
+}
+
+#[cfg(feature = "time")]
+impl From<time::Time> for GameTime {
+    fn from(value: time::Time) -> Self {
+        Self::new(
+            0,
+            value.hour() as u32,
+            value.minute() as u32,
+            value.second() as u32,
+        )
+    }
+}
+
+#[cfg(feature = "time")]
+impl std::ops::Add<time::Time> for GameTime {
+    type Output = Self;
+
+    fn add(self, rhs: time::Time) -> Self::Output {
+        use std::ops::AddAssign;
+        let mut copy = self.clone();
+        copy.add_assign(rhs);
+        copy
+    }
+}
+
+#[cfg(feature = "time")]
+impl std::ops::AddAssign<time::Time> for GameTime {
+    fn add_assign(&mut self, rhs: time::Time) {
+        self.add_hours(rhs.hour() as u32);
+        self.add_minutes(rhs.minute() as u32);
+        self.add_seconds(rhs.second() as u32);
+    }
+}
+
+#[cfg(feature = "time")]
+impl std::ops::Sub<time::Time> for GameTime {
+    type Output = Self;
+
+    fn sub(self, rhs: time::Time) -> Self::Output {
+        use std::ops::SubAssign;
+        let mut copy = self.clone();
+        copy.sub_assign(rhs);
+        copy
+    }
+}
+
+#[cfg(feature = "time")]
+impl std::ops::SubAssign<time::Time> for GameTime {
+    fn sub_assign(&mut self, rhs: time::Time) {
+        self.sub_hours(rhs.hour() as u32);
+        self.sub_minutes(rhs.minute() as u32);
+        self.sub_seconds(rhs.second() as u32);
     }
 }
 
@@ -191,5 +281,25 @@ mod tests {
             assert_eq!(time.minute(), 2);
             assert_eq!(time.second(), 2);
         }
+    }
+
+    #[test]
+    #[cfg(feature = "time")]
+    fn math() {
+        let mut base = GameTime::new(2, 0, 7, 7);
+        base += time::Time::from_hms(1, 2, 3).unwrap();
+
+        assert_eq!(base.day(), 2);
+        assert_eq!(base.hour(), 1);
+        assert_eq!(base.minute(), 9);
+        assert_eq!(base.second(), 10);
+
+        let mut base = GameTime::new(2, 0, 7, 7);
+        base += time::Time::from_hms(23, 53, 59).unwrap();
+
+        assert_eq!(base.day(), 3);
+        assert_eq!(base.hour(), 0);
+        assert_eq!(base.minute(), 1);
+        assert_eq!(base.second(), 6);
     }
 }
