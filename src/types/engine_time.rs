@@ -8,7 +8,7 @@ pub struct EngineTime(red::EngineTime);
 
 impl EngineTime {
     pub fn is_valid(&self) -> bool {
-        self.0.unk00.ne(&[0; 8])
+        self.0.unk00 != [0; 8]
     }
 
     pub fn as_secs_f64(&self) -> f64 {
