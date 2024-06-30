@@ -1,3 +1,5 @@
+mod cruid;
+pub use cruid::Cruid;
 mod engine_time;
 pub use engine_time::EngineTime;
 mod entity_id;
