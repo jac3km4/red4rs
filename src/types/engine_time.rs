@@ -15,19 +15,21 @@ impl EngineTime {
         f64::from_ne_bytes(self.0.unk00)
     }
 
+    /// SAFETY: panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
     pub fn saturating_add_assign(&mut self, value: impl Into<f64>) {
         let current = self.as_secs_f64();
         let value: f64 = value.into();
         let addition = current + value;
         if addition.is_infinite() {
             if addition.is_sign_positive() {
-                self.0.unk00 = f64::MAX.to_ne_bytes();
+                panic!("EngineTime cannot be infinity");
             } else {
-                self.0.unk00 = f64::MIN.to_ne_bytes();
+                panic!("EngineTime cannot be negative infinity");
             }
-        } else {
-            self.0.unk00 = addition.to_ne_bytes();
+        } else if addition.is_nan() {
+            panic!("EngineTime cannot be NaN");
         }
+        self.0.unk00 = addition.to_ne_bytes();
     }
 
     pub fn saturating_add(self, value: impl Into<f64>) -> Self {
@@ -36,19 +38,21 @@ impl EngineTime {
         copy
     }
 
+    /// SAFETY: panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
     pub fn saturating_sub_assign(&mut self, value: impl Into<f64>) {
         let current = self.as_secs_f64();
         let value: f64 = value.into();
-        let addition = current - value;
-        if addition.is_infinite() {
-            if addition.is_sign_positive() {
-                self.0.unk00 = f64::MAX.to_ne_bytes();
+        let substraction = current - value;
+        if substraction.is_infinite() {
+            if substraction.is_sign_positive() {
+                panic!("EngineTime cannot be infinity");
             } else {
-                self.0.unk00 = f64::MIN.to_ne_bytes();
+                panic!("EngineTime cannot be negative infinity");
             }
-        } else {
-            self.0.unk00 = addition.to_ne_bytes();
+        } else if substraction.is_nan() {
+            panic!("EngineTime cannot be NaN");
         }
+        self.0.unk00 = substraction.to_ne_bytes();
     }
 
     pub fn saturating_sub(self, value: impl Into<f64>) -> Self {
@@ -76,6 +80,9 @@ impl TryFrom<f64> for EngineTime {
     fn try_from(value: f64) -> Result<Self, Self::Error> {
         if value.is_infinite() {
             return Err(EngineTimeError::OutOfBounds);
+        }
+        if value.is_nan() {
+            return Err(EngineTimeError::NotANumber);
         }
         Ok(Self(red::EngineTime {
             unk00: value.to_ne_bytes(),
@@ -129,6 +136,7 @@ impl std::ops::SubAssign<Duration> for EngineTime {
 #[derive(Debug)]
 pub enum EngineTimeError {
     OutOfBounds,
+    NotANumber,
 }
 
 impl std::fmt::Display for EngineTimeError {
@@ -138,6 +146,7 @@ impl std::fmt::Display for EngineTimeError {
             "{}",
             match self {
                 Self::OutOfBounds => "unsupported infinite or negative infinite floating-point",
+                Self::NotANumber => "unsupported NaN",
             }
         )
     }
