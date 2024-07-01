@@ -32,6 +32,9 @@ impl std::ops::AddAssign<f64> for EngineTime {
 impl std::ops::Add<f64> for EngineTime {
     type Output = EngineTime;
 
+    /// # Panics
+    ///
+    /// Panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
     fn add(self, rhs: f64) -> Self::Output {
         use std::ops::AddAssign;
         let mut copy = self;
@@ -55,7 +58,10 @@ impl std::ops::SubAssign<f64> for EngineTime {
 
 impl std::ops::Sub<f64> for EngineTime {
     type Output = EngineTime;
-
+    
+    /// # Panics
+    ///
+    /// Panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
     fn sub(self, rhs: f64) -> Self::Output {
         use std::ops::SubAssign;
         let mut copy = self;
