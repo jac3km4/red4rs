@@ -40,15 +40,8 @@ impl EngineTime {
         let current = self.as_secs_f64();
         let value: f64 = value.into();
         let substraction = current - value;
-        if substraction.is_infinite() {
-            if substraction.is_sign_positive() {
-                panic!("EngineTime cannot be infinity");
-            } else {
-                panic!("EngineTime cannot be negative infinity");
-            }
-        } else if substraction.is_nan() {
-            panic!("EngineTime cannot be NaN");
-        }
+        assert!(!substraction.is_infinite(), "EngineTime cannot be infinity");
+        assert!(!substraction.is_nan(), "EngineTime cannot be NaN");
         self.0.unk00 = substraction.to_ne_bytes();
     }
 
