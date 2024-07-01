@@ -58,7 +58,7 @@ impl std::ops::SubAssign<f64> for EngineTime {
 
 impl std::ops::Sub<f64> for EngineTime {
     type Output = EngineTime;
-    
+
     /// # Panics
     ///
     /// Panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
