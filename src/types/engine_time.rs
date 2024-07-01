@@ -15,7 +15,9 @@ impl EngineTime {
         f64::from_ne_bytes(self.0.unk00)
     }
 
-    /// SAFETY: panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
+    /// # Panics
+    ///
+    /// Panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
     pub fn saturating_add_assign(&mut self, value: impl Into<f64>) {
         let current = self.as_secs_f64();
         let value: f64 = value.into();
