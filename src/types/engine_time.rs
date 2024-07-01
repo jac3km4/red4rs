@@ -20,15 +20,8 @@ impl EngineTime {
         let current = self.as_secs_f64();
         let value: f64 = value.into();
         let addition = current + value;
-        if addition.is_infinite() {
-            if addition.is_sign_positive() {
-                panic!("EngineTime cannot be infinity");
-            } else {
-                panic!("EngineTime cannot be negative infinity");
-            }
-        } else if addition.is_nan() {
-            panic!("EngineTime cannot be NaN");
-        }
+        assert!(!addition.is_infinite(), "EngineTime cannot be infinity");
+        assert!(!addition.is_nan(), "EngineTime cannot be NaN");
         self.0.unk00 = addition.to_ne_bytes();
     }
 
