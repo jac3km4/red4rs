@@ -14,40 +14,52 @@ impl EngineTime {
     pub fn as_secs_f64(&self) -> f64 {
         f64::from_ne_bytes(self.0.unk00)
     }
+}
 
+impl std::ops::AddAssign<f64> for EngineTime {
     /// # Panics
     ///
     /// Panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
-    pub fn saturating_add_assign(&mut self, value: impl Into<f64>) {
+    fn add_assign(&mut self, rhs: f64) {
         let current = self.as_secs_f64();
-        let value: f64 = value.into();
-        let addition = current + value;
+        let addition = current + rhs;
         assert!(!addition.is_infinite(), "EngineTime cannot be infinity");
         assert!(!addition.is_nan(), "EngineTime cannot be NaN");
         self.0.unk00 = addition.to_ne_bytes();
     }
+}
 
-    pub fn saturating_add(self, value: impl Into<f64>) -> Self {
+impl std::ops::Add<f64> for EngineTime {
+    type Output = EngineTime;
+
+    fn add(self, rhs: f64) -> Self::Output {
+        use std::ops::AddAssign;
         let mut copy = self;
-        copy.saturating_add_assign(value.into());
+        copy.add_assign(rhs);
         copy
     }
+}
 
+impl std::ops::SubAssign<f64> for EngineTime {
     /// # Panics
     ///
     /// Panics if the sum ends up being `f64::NAN`, `f64::INFINITY` or `f64::NEG_INFINITY`.
-    pub fn saturating_sub_assign(&mut self, value: impl Into<f64>) {
+    fn sub_assign(&mut self, rhs: f64) {
         let current = self.as_secs_f64();
-        let value: f64 = value.into();
-        let substraction = current - value;
+        let substraction = current - rhs;
         assert!(!substraction.is_infinite(), "EngineTime cannot be infinity");
         assert!(!substraction.is_nan(), "EngineTime cannot be NaN");
         self.0.unk00 = substraction.to_ne_bytes();
     }
+}
 
-    pub fn saturating_sub(self, value: impl Into<f64>) -> Self {
+impl std::ops::Sub<f64> for EngineTime {
+    type Output = EngineTime;
+
+    fn sub(self, rhs: f64) -> Self::Output {
+        use std::ops::SubAssign;
         let mut copy = self;
-        copy.saturating_sub_assign(value.into());
+        copy.sub_assign(rhs);
         copy
     }
 }
@@ -99,13 +111,13 @@ impl std::ops::Add<Duration> for EngineTime {
     type Output = Self;
 
     fn add(self, rhs: Duration) -> Self::Output {
-        self.saturating_add(rhs.as_secs_f64())
+        self.add(rhs.as_secs_f64())
     }
 }
 
 impl std::ops::AddAssign<Duration> for EngineTime {
     fn add_assign(&mut self, rhs: Duration) {
-        self.saturating_add_assign(rhs.as_secs_f64());
+        self.add_assign(rhs.as_secs_f64());
     }
 }
 
@@ -113,13 +125,13 @@ impl std::ops::Sub<Duration> for EngineTime {
     type Output = Self;
 
     fn sub(self, rhs: Duration) -> Self::Output {
-        self.saturating_sub(rhs.as_secs_f64())
+        self.sub(rhs.as_secs_f64())
     }
 }
 
 impl std::ops::SubAssign<Duration> for EngineTime {
     fn sub_assign(&mut self, rhs: Duration) {
-        self.saturating_sub_assign(rhs.as_secs_f64());
+        self.sub_assign(rhs.as_secs_f64());
     }
 }
 
@@ -135,8 +147,8 @@ impl std::fmt::Display for EngineTimeError {
             f,
             "{}",
             match self {
-                Self::OutOfBounds => "unsupported infinite or negative infinite floating-point",
-                Self::NotANumber => "unsupported NaN",
+                Self::OutOfBounds => "invalid infinite or negative infinite floating-point",
+                Self::NotANumber => "invalid NaN",
             }
         )
     }
