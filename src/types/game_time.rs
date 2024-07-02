@@ -1,5 +1,7 @@
 use std::hash::Hash;
 
+use chrono::TimeZone;
+
 use crate::raw::root::RED4ext as red;
 use crate::repr::{FromRepr, IntoRepr};
 
@@ -208,21 +210,55 @@ impl std::ops::SubAssign<time::Time> for GameTime {
     }
 }
 
+#[derive(Debug)]
+pub enum GameTimeError {
+    OutOfRange,
+}
+
+impl std::fmt::Display for GameTimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::OutOfRange => "invalid GameTime: out-of-range",
+            }
+        )
+    }
+}
+
+impl std::error::Error for GameTimeError {}
+
+#[cfg(feature = "chrono")]
+pub fn cyberpunk_epoch() -> chrono::DateTime<chrono_tz::Tz> {
+    chrono_tz::US::Pacific
+        .with_ymd_and_hms(2077, 4, 16, 1, 24, 0)
+        .unwrap()
+}
+
 #[cfg(feature = "chrono")]
 impl From<GameTime> for chrono::DateTime<chrono::Utc> {
     fn from(value: GameTime) -> Self {
         // SAFETY: seconds being u32 it fits in i64, and nanos are zero
-        Self::from_timestamp(value.0.seconds as i64, 0).unwrap()
+        Self::from_timestamp(
+            cyberpunk_epoch().to_utc().timestamp() + value.0.seconds as i64,
+            0,
+        )
+        .unwrap()
     }
 }
 
 #[cfg(feature = "chrono")]
-impl From<chrono::DateTime<chrono::Utc>> for GameTime {
-    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
-        use chrono::Timelike;
-        Self(red::GameTime {
-            seconds: value.second(),
-        })
+impl TryFrom<chrono::DateTime<chrono::Utc>> for GameTime {
+    type Error = GameTimeError;
+
+    fn try_from(value: chrono::DateTime<chrono::Utc>) -> Result<Self, Self::Error> {
+        if value < cyberpunk_epoch() {
+            return Err(GameTimeError::OutOfRange);
+        }
+        Ok(Self::from(
+            (value.timestamp() - cyberpunk_epoch().timestamp()) as u32,
+        ))
     }
 }
 
@@ -298,6 +334,32 @@ mod tests {
             assert_eq!(time.minute(), 2);
             assert_eq!(time.second(), 2);
         }
+    }
+
+    #[test]
+    #[cfg(feature = "chrono")]
+    fn date() {
+        use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
+
+        use super::cyberpunk_epoch;
+        let gt = GameTime::new(2, 0, 7, 7);
+        let dt = DateTime::<Utc>::from(gt);
+        assert_eq!(dt.year(), 2077);
+        assert_eq!(dt.month(), 4);
+        assert_eq!(dt.day(), 18);
+        assert_eq!(dt.hour(), 8);
+        assert_eq!(dt.minute(), 31);
+        assert_eq!(dt.second(), 7);
+
+        let dt = cyberpunk_epoch().to_utc()
+            + Duration::days(2)
+            + Duration::minutes(7)
+            + Duration::seconds(7);
+        let gt = GameTime::try_from(dt).unwrap();
+        assert_eq!(gt.day(), 2);
+        assert_eq!(gt.hour(), 0);
+        assert_eq!(gt.minute(), 7);
+        assert_eq!(gt.second(), 7);
     }
 
     #[test]
