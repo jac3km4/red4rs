@@ -20,8 +20,8 @@ mod cname;
 pub use cname::{CName, CNamePool};
 mod rtti;
 pub use rtti::{
-    ArrayType, Bitfield, Class, Enum, Function, FunctionHandler, GlobalFunction, IScriptable, Kind,
-    Method, NativeClass, Property, StaticMethod, Type, ValueContainer, ValuePtr,
+    ArrayType, Bitfield, Class, ClassFlags, Enum, Function, FunctionHandler, GlobalFunction,
+    IScriptable, Kind, Method, NativeClass, Property, StaticMethod, Type, ValueContainer, ValuePtr,
 };
 mod bytecode;
 pub use bytecode::{

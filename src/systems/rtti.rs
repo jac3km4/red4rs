@@ -2,7 +2,7 @@ use std::mem;
 
 use crate::raw::root::RED4ext as red;
 use crate::types::{
-    Bitfield, CName, Class, Enum, Function, GlobalFunction, PoolRef, RedArray, Type,
+    Bitfield, CName, Class, ClassFlags, Enum, Function, GlobalFunction, PoolRef, RedArray, Type,
 };
 
 #[repr(transparent)]
@@ -231,7 +231,7 @@ struct RttiSystemVft {
     _create_scripted_class: unsafe extern "fastcall" fn(
         this: *const RttiSystem,
         name: CName,
-        flags: red::CClass_Flags,
+        flags: ClassFlags,
         parent: *const Class,
     ),
     // FIXME: signature is wrong, but how to represent name and value of enumerator ?

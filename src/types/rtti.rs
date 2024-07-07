@@ -160,6 +160,11 @@ impl Class {
     }
 
     #[inline]
+    pub fn flags(&self) -> ClassFlags {
+        ClassFlags(self.0.flags)
+    }
+
+    #[inline]
     pub fn properties(&self) -> &RedArray<&Property> {
         unsafe { mem::transmute(&self.0.props) }
     }
@@ -254,6 +259,31 @@ impl Drop for Class {
     fn drop(&mut self) {
         let t = self.as_type_mut();
         unsafe { (t.vft().destroy)(t) };
+    }
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct ClassFlags(red::CClass_Flags);
+
+impl std::fmt::Display for ClassFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{}\n{:>10}",
+            format_args!("abstract: {}", self.0.isAbstract()),
+            format_args!("native: {}", self.0.isNative()),
+            format_args!("scripted class: {}", self.0.isScriptedClass() ),
+            format_args!("scripted struct: {}", self.0.isScriptedStruct()),
+            format_args!("no default object serialization: {}",self.0.hasNoDefaultObjectSerialization()),
+            format_args!("always transient: {}",self.0.isAlwaysTransient()),
+            format_args!("import only: {}", self.0.isImportOnly()),
+            format_args!("private: {}", self.0.isPrivate()),
+            format_args!("protected: {}", self.0.isProtected()),
+            format_args!("test only: {}", self.0.isTestOnly()),
+            format_args!("savable: {}", self.0.isSavable()),
+            format_args!("b10: {}", self.0.b10()),
+        )
     }
 }
 
