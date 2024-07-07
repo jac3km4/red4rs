@@ -273,10 +273,13 @@ impl std::fmt::Display for ClassFlags {
             "\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             format_args!("abstract: {}", self.0.isAbstract()),
             format_args!("native: {}", self.0.isNative()),
-            format_args!("scripted class: {}", self.0.isScriptedClass() ),
+            format_args!("scripted class: {}", self.0.isScriptedClass()),
             format_args!("scripted struct: {}", self.0.isScriptedStruct()),
-            format_args!("no default object serialization: {}",self.0.hasNoDefaultObjectSerialization()),
-            format_args!("always transient: {}",self.0.isAlwaysTransient()),
+            format_args!(
+                "no default object serialization: {}",
+                self.0.hasNoDefaultObjectSerialization()
+            ),
+            format_args!("always transient: {}", self.0.isAlwaysTransient()),
             format_args!("import only: {}", self.0.isImportOnly()),
             format_args!("private: {}", self.0.isPrivate()),
             format_args!("protected: {}", self.0.isProtected()),
