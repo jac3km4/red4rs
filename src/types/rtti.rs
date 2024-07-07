@@ -270,7 +270,7 @@ impl std::fmt::Display for ClassFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{:>10}\n{}\n{:>10}",
+            "\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
             format_args!("abstract: {}", self.0.isAbstract()),
             format_args!("native: {}", self.0.isNative()),
             format_args!("scripted class: {}", self.0.isScriptedClass() ),
