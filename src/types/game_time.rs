@@ -208,25 +208,6 @@ impl std::ops::SubAssign<time::Time> for GameTime {
     }
 }
 
-#[derive(Debug)]
-pub enum GameTimeError {
-    OutOfRange,
-}
-
-impl std::fmt::Display for GameTimeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::OutOfRange => "invalid GameTime: out-of-range",
-            }
-        )
-    }
-}
-
-impl std::error::Error for GameTimeError {}
-
 #[cfg(feature = "chrono")]
 pub fn cyberpunk_epoch() -> chrono::DateTime<chrono_tz::Tz> {
     use chrono::TimeZone;
@@ -249,11 +230,11 @@ impl From<GameTime> for chrono::DateTime<chrono::Utc> {
 
 #[cfg(feature = "chrono")]
 impl TryFrom<chrono::DateTime<chrono::Utc>> for GameTime {
-    type Error = GameTimeError;
+    type Error = chrono::format::ParseErrorKind;
 
     fn try_from(value: chrono::DateTime<chrono::Utc>) -> Result<Self, Self::Error> {
         if value < cyberpunk_epoch() {
-            return Err(GameTimeError::OutOfRange);
+            return Err(chrono::format::ParseErrorKind::OutOfRange);
         }
         Ok(Self::from(
             (value.timestamp() - cyberpunk_epoch().timestamp()) as u32,
