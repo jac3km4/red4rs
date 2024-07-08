@@ -1,7 +1,5 @@
 use std::hash::Hash;
 
-use chrono::TimeZone;
-
 use crate::raw::root::RED4ext as red;
 use crate::repr::{FromRepr, IntoRepr};
 
@@ -231,6 +229,7 @@ impl std::error::Error for GameTimeError {}
 
 #[cfg(feature = "chrono")]
 pub fn cyberpunk_epoch() -> chrono::DateTime<chrono_tz::Tz> {
+    use chrono::TimeZone;
     chrono_tz::US::Pacific
         .with_ymd_and_hms(2077, 4, 16, 1, 24, 0)
         .unwrap()
