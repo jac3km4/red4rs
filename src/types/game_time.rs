@@ -172,7 +172,7 @@ impl std::ops::Add<time::Time> for GameTime {
 
     fn add(self, rhs: time::Time) -> Self::Output {
         use std::ops::AddAssign;
-        let mut copy = self.clone();
+        let mut copy = self;
         copy.add_assign(rhs);
         copy
     }
@@ -193,7 +193,7 @@ impl std::ops::Sub<time::Time> for GameTime {
 
     fn sub(self, rhs: time::Time) -> Self::Output {
         use std::ops::SubAssign;
-        let mut copy = self.clone();
+        let mut copy = self;
         copy.sub_assign(rhs);
         copy
     }
