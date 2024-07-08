@@ -20,7 +20,7 @@ mod cname;
 pub use cname::{CName, CNamePool};
 mod rtti;
 pub use rtti::{
-    ArrayType, Bitfield, Class, ClassFlags, Enum, Function, FunctionHandler, GlobalFunction,
+    ArrayType, Bitfield, Class, ClassHandle, Enum, Function, FunctionHandler, GlobalFunction,
     IScriptable, Kind, Method, NativeClass, Property, StaticMethod, Type, ValueContainer, ValuePtr,
 };
 mod bytecode;
@@ -33,3 +33,5 @@ mod allocator;
 pub use allocator::{IAllocator, PoolRef, Poolable, PoolableOps};
 mod hash;
 pub use hash::{Hash, RedHashMap};
+mod sync;
+pub use sync::{RwSpinLockReadGuard, RwSpinLockWriteGuard};

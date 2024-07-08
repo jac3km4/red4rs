@@ -1,16 +1,23 @@
-use std::mem;
+use std::{mem, ptr};
 
 use crate::raw::root::RED4ext as red;
 use crate::types::{
-    Bitfield, CName, Class, ClassFlags, Enum, Function, GlobalFunction, PoolRef, RedArray, Type,
+    Bitfield, CName, Class, ClassHandle, Enum, Function, GlobalFunction, PoolRef, RedArray,
+    RedHashMap, RwSpinLockReadGuard, RwSpinLockWriteGuard, Type,
 };
 
 #[repr(transparent)]
 pub struct RttiSystem(red::CRTTISystem);
 
 impl RttiSystem {
-    pub fn get() -> &'static Self {
-        unsafe { &*(red::CRTTISystem_Get() as *const RttiSystem) }
+    /// Acquire a read lock on the RTTI system.
+    #[inline]
+    pub fn get<'a>() -> RwSpinLockReadGuard<'a, Self> {
+        unsafe {
+            let rtti = red::CRTTISystem_Get();
+            let lock = &(*rtti).typesLock;
+            RwSpinLockReadGuard::new(lock, ptr::NonNull::new_unchecked(rtti as _))
+        }
     }
 
     #[inline]
@@ -47,7 +54,7 @@ impl RttiSystem {
     pub fn get_native_types(&self) -> RedArray<&Type> {
         let mut out = RedArray::default();
         unsafe {
-            (self.vft().get_native_types)(self, &mut out as *mut _ as *mut RedArray<*const Type>)
+            (self.vft().get_native_types)(self, &mut out as *mut _ as *mut RedArray<*mut Type>)
         };
         out
     }
@@ -55,7 +62,7 @@ impl RttiSystem {
     #[inline]
     pub fn get_enums(&self) -> RedArray<&Enum> {
         let mut out = RedArray::default();
-        unsafe { (self.vft().get_enums)(self, &mut out as *mut _ as *mut RedArray<*const Enum>) };
+        unsafe { (self.vft().get_enums)(self, &mut out as *mut _ as *mut RedArray<*mut Enum>) };
         out
     }
 
@@ -65,7 +72,7 @@ impl RttiSystem {
         unsafe {
             (self.vft().get_bitfields)(
                 self,
-                &mut out as *mut _ as *mut RedArray<*const Bitfield>,
+                &mut out as *mut _ as *mut RedArray<*mut Bitfield>,
                 scripted_only,
             )
         };
@@ -78,7 +85,7 @@ impl RttiSystem {
         unsafe {
             (self.vft().get_global_functions)(
                 self,
-                &mut out as *mut _ as *mut RedArray<*const Function>,
+                &mut out as *mut _ as *mut RedArray<*mut Function>,
             )
         };
         out
@@ -90,7 +97,7 @@ impl RttiSystem {
         unsafe {
             (self.vft().get_class_functions)(
                 self,
-                &mut out as *mut _ as *mut RedArray<*const Function>,
+                &mut out as *mut _ as *mut RedArray<*mut Function>,
             )
         };
         out
@@ -104,7 +111,7 @@ impl RttiSystem {
             (self.vft().get_classes)(
                 self,
                 base,
-                &mut out as *mut _ as *mut RedArray<*const Class>,
+                &mut out as *mut _ as *mut RedArray<*mut Class>,
                 None,
                 include_abstract,
             )
@@ -120,7 +127,7 @@ impl RttiSystem {
             (self.vft().get_derived_classes)(
                 self,
                 base,
-                &mut out as *mut _ as *mut RedArray<*const Class>,
+                &mut out as *mut _ as *mut RedArray<*mut Class>,
             )
         };
         out
@@ -139,25 +146,82 @@ impl RttiSystem {
     }
 
     #[inline]
-    pub fn register_function(&self, function: PoolRef<GlobalFunction>) {
+    fn vft(&self) -> &RttiSystemVft {
+        unsafe { &*(self.0._base.vtable_ as *const RttiSystemVft) }
+    }
+}
+
+#[repr(transparent)]
+pub struct RttiSystemMut(red::CRTTISystem);
+
+impl RttiSystemMut {
+    /// Acquire a write lock on the RTTI system.
+    #[inline]
+    pub fn get() -> RwSpinLockWriteGuard<'static, Self> {
+        unsafe {
+            let rtti = red::CRTTISystem_Get();
+            let lock = &(*rtti).typesLock;
+            RwSpinLockWriteGuard::new(lock, ptr::NonNull::new_unchecked(rtti as _))
+        }
+    }
+
+    pub fn get_class(&mut self, name: CName) -> Option<&mut Class> {
+        // implemented manually to avoid the game trying to obtain the type lock
+        let (types, types_by_id, type_ids) = self.split_types();
+        if let Some(ty) = types.get_mut(&name) {
+            return ty.as_class_mut();
+        }
+        let &id = type_ids.get(&name)?;
+        types_by_id.get_mut(&id)?.as_class_mut()
+    }
+
+    pub fn register_class(&mut self, mut class: ClassHandle) {
+        // implemented manually to avoid the game trying to obtain the type lock
+        let id = unsafe { red::RTTIRegistrator::GetNextId() };
+        self.types()
+            .insert(class.as_ref().name(), class.as_mut().as_type_mut());
+        self.types_by_id().insert(id, class.as_mut().as_type_mut());
+        self.type_ids().insert(class.as_ref().name(), id);
+    }
+
+    #[inline]
+    pub fn register_function(&mut self, function: PoolRef<GlobalFunction>) {
         unsafe { (self.vft().register_function)(self, &*function) }
         // RTTI takes ownership of it from now on
         mem::forget(function);
     }
 
     #[inline]
-    pub fn register_type(&self, type_: &'static Type) {
-        unsafe {
-            red::CRTTISystem_RegisterType(
-                self as *const _ as *mut red::CRTTISystem,
-                type_ as *const _ as *mut red::CBaseRTTIType,
-            )
-        };
+    fn types(&mut self) -> &mut RedHashMap<CName, &mut Type> {
+        unsafe { &mut *(&mut self.0.types as *mut _ as *mut RedHashMap<CName, &mut Type>) }
     }
 
     #[inline]
-    pub fn register_class(&self, class: &'static Class) {
-        self.register_type(class.as_type());
+    fn types_by_id(&mut self) -> &mut RedHashMap<u32, &mut Type> {
+        unsafe { &mut *(&mut self.0.typesByAsyncId as *mut _ as *mut RedHashMap<u32, &mut Type>) }
+    }
+
+    #[inline]
+    fn type_ids(&mut self) -> &mut RedHashMap<CName, u32> {
+        unsafe { &mut *(&mut self.0.typeAsyncIds as *mut _ as *mut RedHashMap<CName, u32>) }
+    }
+
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn split_types(
+        &mut self,
+    ) -> (
+        &mut RedHashMap<CName, &mut Type>,
+        &mut RedHashMap<u32, &mut Type>,
+        &mut RedHashMap<CName, u32>,
+    ) {
+        unsafe {
+            (
+                &mut *(&mut self.0.types as *mut _ as *mut RedHashMap<CName, &mut Type>),
+                &mut *(&mut self.0.typesByAsyncId as *mut _ as *mut RedHashMap<u32, &mut Type>),
+                &mut *(&mut self.0.typeAsyncIds as *mut _ as *mut RedHashMap<CName, u32>),
+            )
+        }
     }
 
     #[inline]
@@ -168,50 +232,48 @@ impl RttiSystem {
 
 #[repr(C)]
 struct RttiSystemVft {
-    get_type: unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *const Type,
+    get_type: unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *mut Type,
     get_type_by_async_id:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, async_id: u32) -> *const Type,
-    get_class: unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *const Class,
-    get_enum: unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *const Enum,
+        unsafe extern "fastcall" fn(this: *const RttiSystem, async_id: u32) -> *mut Type,
+    get_class: unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *mut Class,
+    get_enum: unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *mut Enum,
     get_bitfield:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *const Bitfield,
+        unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *mut Bitfield,
     _sub_28: unsafe extern "fastcall" fn(this: *const RttiSystem),
     get_function:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *const Function,
+        unsafe extern "fastcall" fn(this: *const RttiSystem, name: CName) -> *mut Function,
     _sub_38: unsafe extern "fastcall" fn(this: *const RttiSystem),
     get_native_types:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*const Type>),
+        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*mut Type>),
     get_global_functions:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*const Function>),
+        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*mut Function>),
     _sub_50: unsafe extern "fastcall" fn(this: *const RttiSystem),
     get_class_functions:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*const Function>),
-    get_enums:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*const Enum>),
+        unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*mut Function>),
+    get_enums: unsafe extern "fastcall" fn(this: *const RttiSystem, out: *mut RedArray<*mut Enum>),
     get_bitfields: unsafe extern "fastcall" fn(
         this: *const RttiSystem,
-        out: *mut RedArray<*const Bitfield>,
+        out: *mut RedArray<*mut Bitfield>,
         scripted_only: bool,
     ),
     get_classes: unsafe extern "fastcall" fn(
         this: *const RttiSystem,
         base_class: *const Class,
-        out: *mut RedArray<*const Class>,
+        out: *mut RedArray<*mut Class>,
         filter: Option<unsafe extern "C" fn(*const Class) -> bool>,
         include_abstract: bool,
     ),
     get_derived_classes: unsafe extern "fastcall" fn(
         this: *const RttiSystem,
         base_class: *const Class,
-        out: *mut RedArray<*const Class>,
+        out: *mut RedArray<*mut Class>,
     ),
-    register_type:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, ty: *const Type, async_id: u32),
+    register_type: unsafe extern "fastcall" fn(this: *mut RttiSystem, ty: *mut Type, async_id: u32),
     _sub_88: unsafe extern "fastcall" fn(this: *const RttiSystem),
     _sub_90: unsafe extern "fastcall" fn(this: *const RttiSystem),
-    unregister_type: unsafe extern "fastcall" fn(this: *const RttiSystem, ty: *const Type),
+    unregister_type: unsafe extern "fastcall" fn(this: *mut RttiSystem, ty: *mut Type),
     register_function:
-        unsafe extern "fastcall" fn(this: *const RttiSystem, function: *const GlobalFunction),
+        unsafe extern "fastcall" fn(this: *const RttiSystemMut, function: *const GlobalFunction),
     unregister_function:
         unsafe extern "fastcall" fn(this: *const RttiSystem, function: *const GlobalFunction),
     _sub_b0: unsafe extern "fastcall" fn(this: *const RttiSystem),
@@ -229,7 +291,7 @@ struct RttiSystemVft {
     _sub_d0: unsafe extern "fastcall" fn(this: *const RttiSystem),
     _sub_d8: unsafe extern "fastcall" fn(this: *const RttiSystem),
     _create_scripted_class: unsafe extern "fastcall" fn(
-        this: *const RttiSystem,
+        this: *mut RttiSystem,
         name: CName,
         flags: ClassFlags,
         parent: *const Class,
