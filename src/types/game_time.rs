@@ -239,7 +239,7 @@ pub fn cyberpunk_epoch() -> chrono::DateTime<chrono_tz::Tz> {
 #[cfg(feature = "chrono")]
 impl From<GameTime> for chrono::DateTime<chrono::Utc> {
     fn from(value: GameTime) -> Self {
-        // SAFETY: seconds being u32 it fits in i64, and nanos are zero
+        // seconds being u32 it fits in i64, and nanos are zero
         Self::from_timestamp(
             cyberpunk_epoch().to_utc().timestamp() + value.0.seconds as i64,
             0,
