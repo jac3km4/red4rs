@@ -150,15 +150,6 @@ pub struct WeakRef<T: ScriptClass>(BaseRef<NativeType<T>>);
 
 impl<T: ScriptClass> WeakRef<T> {
     #[inline]
-    pub(super) fn from_raw(
-        value: &red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
-    ) -> Self {
-        let base: BaseRef<NativeType<T>> = BaseRef(unsafe { ptr::read(value) });
-        base.inc_weak();
-        Self(base)
-    }
-
-    #[inline]
     pub fn fields(&self) -> Option<&T> {
         Some(T::Kind::get(self.0.instance()?))
     }
