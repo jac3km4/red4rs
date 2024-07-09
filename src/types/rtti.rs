@@ -273,20 +273,20 @@ pub struct ClassFlags(red::CClass_Flags);
 impl fmt::Debug for ClassFlags {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ClassFlags")
-            .field("abstract", &self.0.isAbstract())
-            .field("native", &self.0.isNative())
-            .field("scripted class", &self.0.isScriptedClass())
-            .field("scripted struct", &self.0.isScriptedStruct())
+            .field("is_abstract", &self.0.isAbstract())
+            .field("is_native", &self.0.isNative())
+            .field("is_scripted_class", &self.0.isScriptedClass())
+            .field("is_scripted_struct", &self.0.isScriptedStruct())
             .field(
-                "no default object serialization",
+                "has_no_default_object_serialization",
                 &self.0.hasNoDefaultObjectSerialization(),
             )
-            .field("always transient", &self.0.isAlwaysTransient())
-            .field("import only", &self.0.isImportOnly())
-            .field("private", &self.0.isPrivate())
-            .field("protected", &self.0.isProtected())
-            .field("test only", &self.0.isTestOnly())
-            .field("savable", &self.0.isSavable())
+            .field("is_always_transient", &self.0.isAlwaysTransient())
+            .field("is_import_only", &self.0.isImportOnly())
+            .field("is_private", &self.0.isPrivate())
+            .field("is_protected", &self.0.isProtected())
+            .field("is_test_only", &self.0.isTestOnly())
+            .field("is_savable", &self.0.isSavable())
             .field("b10", &self.0.b10())
             .finish()
     }
