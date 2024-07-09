@@ -832,6 +832,11 @@ impl Enum {
     }
 
     #[inline]
+    pub fn variant_values(&self) -> &RedArray<i64> {
+        unsafe { mem::transmute(&self.0.valueList) }
+    }
+
+    #[inline]
     pub fn as_type(&self) -> &Type {
         unsafe { &*(self as *const _ as *const Type) }
     }
