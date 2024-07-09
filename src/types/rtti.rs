@@ -1022,18 +1022,18 @@ pub struct Entity(red::Entity);
 
 impl Entity {
     #[inline]
-    pub fn id(&self) -> EntityId {
-        EntityId::from(self.0.entityID.hash)
+    pub fn appearance_name(&self) -> CName {
+        CName::from(self.0.appearanceName.hash)
     }
 
     #[inline]
     pub fn components(&self) -> &RedArray<Ref<IComponent>> {
         unsafe { mem::transmute(&self.0.components) }
     }
-
+    
     #[inline]
-    pub fn appearance_name(&self) -> CName {
-        CName::from(self.0.appearanceName.hash)
+    pub fn id(&self) -> EntityId {
+        EntityId::from(self.0.entityID.hash)
     }
 
     #[inline]
