@@ -982,7 +982,7 @@ impl IComponent {
 
     #[inline]
     pub fn appearance_path(&self) -> ResRef {
-        ResRef::from_raw(self.0.appearancePath)
+        unsafe { mem::transmute(self.0.appearancePath) }
     }
 
     #[inline]
@@ -1055,7 +1055,7 @@ impl Entity {
 
     #[inline]
     pub fn template_path(&self) -> ResRef {
-        ResRef::from_raw(self.0.templatePath)
+        unsafe { mem::transmute(self.0.templatePath) }
     }
 }
 
