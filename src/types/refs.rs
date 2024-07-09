@@ -68,10 +68,10 @@ pub struct Ref<T: ScriptClass>(BaseRef<NativeType<T>>);
 
 impl<T: ScriptClass> Ref<T> {
     #[inline]
-    fn try_from_raw(
-        value: red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
+    pub(super) fn try_from_raw(
+        value: &red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
     ) -> Option<Self> {
-        let base: BaseRef<NativeType<T>> = BaseRef(value);
+        let base: BaseRef<NativeType<T>> = BaseRef(unsafe { ptr::read(value) });
         if !base.inc_strong_if_non_zero() {
             return None;
         }
@@ -151,11 +151,11 @@ pub struct WeakRef<T: ScriptClass>(BaseRef<NativeType<T>>);
 impl<T: ScriptClass> WeakRef<T> {
     #[inline]
     pub(super) fn from_raw(
-        value: red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
-    ) -> Option<Self> {
-        let base: BaseRef<NativeType<T>> = BaseRef(value);
+        value: &red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
+    ) -> Self {
+        let base: BaseRef<NativeType<T>> = BaseRef(unsafe { ptr::read(value) });
         base.inc_weak();
-        Some(Self(base))
+        Self(base)
     }
 
     #[inline]
