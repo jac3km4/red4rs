@@ -837,6 +837,11 @@ impl Enum {
     }
 
     #[inline]
+    pub fn size(&self) -> u8 {
+        self.0.actualSize
+    }
+
+    #[inline]
     pub fn as_type(&self) -> &Type {
         unsafe { &*(self as *const _ as *const Type) }
     }
