@@ -11,7 +11,7 @@ use crate::invocable::{Args, InvokeError};
 use crate::raw::root::RED4ext as red;
 use crate::repr::{FromRepr, NativeRepr};
 use crate::systems::RttiSystem;
-use crate::VoidPtr;
+use crate::{call, VoidPtr};
 
 pub type FunctionHandler<C, R> = extern "C" fn(&C, &mut StackFrame, R, i64);
 
@@ -1027,18 +1027,38 @@ impl Entity {
     }
 
     #[inline]
+    pub fn can_service_event(&self, event_name: CName) -> bool {
+        call!(self, "CanServiceEvent"(event_name) -> bool).unwrap_or(false)
+    }
+
+    #[inline]
     pub fn components(&self) -> &RedArray<Ref<IComponent>> {
         unsafe { mem::transmute(&self.0.components) }
     }
-    
+
     #[inline]
-    pub fn id(&self) -> EntityId {
+    pub fn find_component_by_name(&self, component_name: CName) -> Option<Ref<IComponent>> {
+        self.components().iter().find(|&x| {
+            x.instance()
+                .map(|x| x.name() == component_name)
+                .unwrap_or(false)
+        }).cloned()
+    }
+
+    #[inline]
+    pub fn entity_id(&self) -> EntityId {
         EntityId::from(self.0.entityID.hash)
     }
 
     #[inline]
     pub fn template_path(&self) -> ResRef {
         ResRef::from_raw(self.0.templatePath)
+    }
+}
+
+impl AsRef<IScriptable> for Entity {
+    fn as_ref(&self) -> &IScriptable {
+        unsafe { mem::transmute(&self.0._base) }
     }
 }
 
