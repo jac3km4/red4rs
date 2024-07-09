@@ -4,7 +4,8 @@ use std::ptr::NonNull;
 use std::{iter, mem, ptr, slice};
 
 use super::{
-    CName, CNamePool, EntityId, IAllocator, Native, PoolRef, PoolableOps, RaRef, RedArray, RedHashMap, RedString, ResRef, ScriptClass, StackArg, StackFrame
+    CName, CNamePool, Cruid, EntityId, IAllocator, Native, PoolRef, PoolableOps, RedArray,
+    RedHashMap, RedString, Ref, ResRef, ScriptClass, StackArg, StackFrame, WeakRef,
 };
 use crate::invocable::{Args, InvokeError};
 use crate::raw::root::RED4ext as red;
@@ -940,25 +941,112 @@ unsafe impl ScriptClass for IScriptable {
 
 #[derive(Debug)]
 #[repr(transparent)]
+pub struct IAttachment(red::entIAttachment);
+
+unsafe impl ScriptClass for IAttachment {
+    type Kind = Native;
+
+    const CLASS_NAME: &'static str = "entIAttachment";
+}
+
+impl IAttachment {
+    pub fn source(&self) -> WeakRef<IComponent> {
+        WeakRef::<IComponent>::from_raw(unsafe {
+            mem::transmute::<&_, &_>(&self.0.source._base._base)
+        })
+    }
+
+    pub fn destination(&self) -> WeakRef<IComponent> {
+        WeakRef::<IComponent>::from_raw(unsafe {
+            mem::transmute::<&_, &_>(&self.0.destination._base._base)
+        })
+    }
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
 pub struct IComponent(red::IComponent);
+
+unsafe impl ScriptClass for IComponent {
+    type Kind = Native;
+
+    const CLASS_NAME: &'static str = "IComponent";
+    const NATIVE_NAME: &'static str = "entIComponent";
+}
+
+impl IComponent {
+    #[inline]
+    pub fn appearance_name(&self) -> CName {
+        CName::from(self.0.appearanceName.hash)
+    }
+
+    #[inline]
+    pub fn appearance_path(&self) -> ResRef {
+        ResRef::from_raw(self.0.appearancePath)
+    }
+
+    #[inline]
+    pub fn attachments(&self) -> &RedArray<Ref<IAttachment>> {
+        unsafe { mem::transmute(&self.0.attachments) }
+    }
+
+    #[inline]
+    pub fn enabled(&self) -> bool {
+        self.0.isEnabled
+    }
+
+    #[inline]
+    pub fn id(&self) -> Cruid {
+        Cruid::from(self.0.id.unk00)
+    }
+
+    #[inline]
+    pub fn name(&self) -> CName {
+        CName::from(self.0.name.hash)
+    }
+
+    #[inline]
+    pub fn owner(&self) -> Option<Ref<Entity>> {
+        Ref::<Entity>::try_from_raw(unsafe { mem::transmute::<&*mut _, &_>(&self.0.owner) })
+    }
+
+    #[inline]
+    pub fn replicable(&self) -> bool {
+        self.0.isReplicable
+    }
+}
 
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Entity(red::Entity);
 
 impl Entity {
+    #[inline]
     pub fn id(&self) -> EntityId {
         EntityId::from(self.0.entityID.hash)
     }
-    pub fn components(&self) -> &RedArray<IComponent> {
+
+    #[inline]
+    pub fn components(&self) -> &RedArray<Ref<IComponent>> {
         unsafe { mem::transmute(&self.0.components) }
     }
+
+    #[inline]
     pub fn appearance_name(&self) -> CName {
-        CName::from_raw(self.0.appearanceName)
+        CName::from(self.0.appearanceName.hash)
     }
+
+    #[inline]
     pub fn template_path(&self) -> ResRef {
         ResRef::from_raw(self.0.templatePath)
     }
+}
+
+unsafe impl ScriptClass for Entity {
+    type Kind = Native;
+
+    const CLASS_NAME: &'static str = "Entity";
+    const NATIVE_NAME: &'static str = "entEntity";
 }
 
 #[derive(Debug, Clone, Copy)]
