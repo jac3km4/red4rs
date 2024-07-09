@@ -828,7 +828,7 @@ impl Enum {
 
     #[inline]
     pub fn variant_names(&self) -> &RedArray<CName> {
-        unsafe { mem::transmute(&self.0.aliasList) }
+        unsafe { mem::transmute(&self.0.hashList) }
     }
 
     #[inline]
