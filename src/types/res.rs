@@ -62,6 +62,9 @@ impl ResRef {
             },
         }))
     }
+    pub(super) fn from_raw(path: red::ResourcePath) -> Self {
+        Self(red::ResRef { resource: red::RaRef { path } })
+    }
 }
 
 impl PartialEq for ResRef {

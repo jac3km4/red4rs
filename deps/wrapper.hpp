@@ -1,4 +1,6 @@
 #include <RED4ext/RED4ext.hpp>
+#include <RED4ext/Scripting/Natives/Generated/ent/GameEntity.hpp>
+#include <RED4ext/Scripting/Natives/entEntity.hpp>
 #include <RED4ext/Scripting/Natives/entEntityID.hpp>
 #include <RED4ext/Scripting/Natives/GameTime.hpp>
 #include <RED4ext/Scripting/Natives/Generated/EngineTime.hpp>

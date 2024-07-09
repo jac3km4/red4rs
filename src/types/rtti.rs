@@ -4,8 +4,7 @@ use std::ptr::NonNull;
 use std::{iter, mem, ptr, slice};
 
 use super::{
-    CName, CNamePool, IAllocator, Native, PoolRef, PoolableOps, RedArray, RedHashMap, RedString,
-    ScriptClass, StackArg, StackFrame,
+    CName, CNamePool, EntityId, IAllocator, Native, PoolRef, PoolableOps, RaRef, RedArray, RedHashMap, RedString, ResRef, ScriptClass, StackArg, StackFrame
 };
 use crate::invocable::{Args, InvokeError};
 use crate::raw::root::RED4ext as red;
@@ -937,6 +936,29 @@ unsafe impl ScriptClass for IScriptable {
     type Kind = Native;
 
     const CLASS_NAME: &'static str = "IScriptable";
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct IComponent(red::IComponent);
+
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct Entity(red::Entity);
+
+impl Entity {
+    pub fn id(&self) -> EntityId {
+        EntityId::from(self.0.entityID.hash)
+    }
+    pub fn components(&self) -> &RedArray<IComponent> {
+        unsafe { mem::transmute(&self.0.components) }
+    }
+    pub fn appearance_name(&self) -> CName {
+        CName::from_raw(self.0.appearanceName)
+    }
+    pub fn template_path(&self) -> ResRef {
+        ResRef::from_raw(self.0.templatePath)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
