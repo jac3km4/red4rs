@@ -1038,11 +1038,14 @@ impl Entity {
 
     #[inline]
     pub fn find_component_by_name(&self, component_name: CName) -> Option<Ref<IComponent>> {
-        self.components().iter().find(|&x| {
-            x.instance()
-                .map(|x| x.name() == component_name)
-                .unwrap_or(false)
-        }).cloned()
+        self.components()
+            .iter()
+            .find(|&x| {
+                x.instance()
+                    .map(|x| x.name() == component_name)
+                    .unwrap_or(false)
+            })
+            .cloned()
     }
 
     #[inline]
