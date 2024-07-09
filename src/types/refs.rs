@@ -68,6 +68,17 @@ pub struct Ref<T: ScriptClass>(BaseRef<NativeType<T>>);
 
 impl<T: ScriptClass> Ref<T> {
     #[inline]
+    fn try_from_raw(
+        value: red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
+    ) -> Option<Self> {
+        let base: BaseRef<NativeType<T>> = BaseRef(value);
+        if !base.inc_strong_if_non_zero() {
+            return None;
+        }
+        Some(Self(base))
+    }
+
+    #[inline]
     pub fn new() -> Option<Self> {
         Self::new_with(|_| {})
     }
@@ -138,6 +149,15 @@ unsafe impl<T: ScriptClass> Sync for Ref<T> {}
 pub struct WeakRef<T: ScriptClass>(BaseRef<NativeType<T>>);
 
 impl<T: ScriptClass> WeakRef<T> {
+    #[inline]
+    pub(super) fn from_raw(
+        value: red::SharedPtrBase<<<T as ScriptClass>::Kind as ClassKind<T>>::NativeType>,
+    ) -> Option<Self> {
+        let base: BaseRef<NativeType<T>> = BaseRef(value);
+        base.inc_weak();
+        Some(Self(base))
+    }
+
     #[inline]
     pub fn fields(&self) -> Option<&T> {
         Some(T::Kind::get(self.0.instance()?))
