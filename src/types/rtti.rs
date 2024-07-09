@@ -1003,6 +1003,9 @@ impl IComponent {
 
     #[inline]
     pub fn owner(&self) -> Option<Ref<Entity>> {
+        if self.0.owner.is_null() {
+            return None;
+        }
         Ref::<Entity>::try_from_raw(unsafe { mem::transmute::<&*mut _, &_>(&self.0.owner) })
     }
 
