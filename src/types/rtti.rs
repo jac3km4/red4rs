@@ -951,11 +951,13 @@ unsafe impl ScriptClass for IAttachment {
 
 impl IAttachment {
     pub fn source(&self) -> WeakRef<IComponent> {
-        unsafe { mem::transmute(ptr::read(&self.0.source)) }
+        unsafe { mem::transmute::<red::WeakHandle<_>, WeakRef<_>>(ptr::read(&self.0.source)) }
+            .clone()
     }
 
     pub fn destination(&self) -> WeakRef<IComponent> {
-        unsafe { mem::transmute(ptr::read(&self.0.destination)) }
+        unsafe { mem::transmute::<red::WeakHandle<_>, WeakRef<_>>(ptr::read(&self.0.destination)) }
+            .clone()
     }
 }
 
