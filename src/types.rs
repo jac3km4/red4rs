@@ -12,6 +12,8 @@ mod res;
 pub use res::{RaRef, ResRef};
 mod tweak_db_id;
 pub use tweak_db_id::TweakDbId;
+mod maths;
+pub use maths::{EulerAngles, Quaternion, Vector2, Vector3, Vector4};
 mod array;
 pub use array::{IntoIter, RedArray};
 mod refs;

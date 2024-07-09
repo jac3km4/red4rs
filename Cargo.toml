@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 chrono = { version = "0.4", optional = true }
 chrono-tz = { version = "0.9", optional = true }
+mint = { version = "0.5", optional = true }
 time = { version = "0.3", optional = true }
 thiserror = "1"
 sealed = "0.5"
@@ -22,6 +23,7 @@ cmake = "0.1"
 [features]
 default = []
 chrono = ["dep:chrono", "dep:chrono-tz"]
+mint = ["dep:mint"]
 time = ["dep:time"]
 log = ["dep:log"]
 
