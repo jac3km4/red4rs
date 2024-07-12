@@ -1,15 +1,16 @@
+use std::iter::FusedIterator;
 use std::{mem, ptr, slice};
 
 use super::{CName, IAllocator};
 use crate::raw::root::RED4ext as red;
 
-#[derive(Debug, Default)]
+const INVALID_INDEX: u32 = u32::MAX;
+
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct RedHashMap<K, V>(red::HashMap<K, V>);
 
 impl<K, V> RedHashMap<K, V> {
-    const INVALID_INDEX: u32 = u32::MAX;
-
     #[inline]
     pub fn get(&self, key: &K) -> Option<&V>
     where
@@ -48,6 +49,11 @@ impl<K, V> RedHashMap<K, V> {
     }
 
     #[inline]
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        self.into_iter()
+    }
+
+    #[inline]
     pub fn size(&self) -> u32 {
         self.0.size
     }
@@ -58,9 +64,11 @@ impl<K, V> RedHashMap<K, V> {
     }
 
     fn get_by_hash(&self, hash: u32) -> Option<&V> {
-        let mut cur = self.indexes()[(hash % self.capacity()) as usize];
-        while cur != Self::INVALID_INDEX {
-            let node = &self.nodes()[cur as usize];
+        let mut cur = *self
+            .indexes()
+            .get((hash.checked_rem(self.capacity()))? as usize)?;
+        while cur != INVALID_INDEX {
+            let node = self.nodes().get(cur as usize)?;
             if node.hashedKey == hash {
                 return Some(&node.value);
             }
@@ -70,11 +78,13 @@ impl<K, V> RedHashMap<K, V> {
     }
 
     fn get_by_hash_mut(&mut self, hash: u32) -> Option<&mut V> {
-        let mut cur = self.indexes()[(hash % self.capacity()) as usize];
-        while cur != Self::INVALID_INDEX {
-            let node = &self.nodes_mut()[cur as usize];
+        let mut cur = *self
+            .indexes()
+            .get((hash.checked_rem(self.capacity()))? as usize)?;
+        while cur != INVALID_INDEX {
+            let node = self.nodes_mut().get(cur as usize)?;
             if node.hashedKey == hash {
-                return Some(&mut self.nodes_mut()[cur as usize].value);
+                return Some(&mut self.nodes_mut().get_mut(cur as usize)?.value);
             }
             cur = node.next;
         }
@@ -98,15 +108,13 @@ impl<K, V> RedHashMap<K, V> {
         }
         .cast::<u32>();
         let index_table = unsafe { slice::from_raw_parts_mut(index_table, new_capacity as usize) };
-        index_table
-            .iter_mut()
-            .for_each(|i| *i = Self::INVALID_INDEX);
+        index_table.iter_mut().for_each(|i| *i = INVALID_INDEX);
 
         if self.capacity() != 0 {
             if self.size() != 0 {
                 for &idx in self.indexes() {
                     let mut cur = idx;
-                    while cur != Self::INVALID_INDEX {
+                    while cur != INVALID_INDEX {
                         let old = &self.nodes()[cur as usize];
                         Self::push_node(
                             &mut node_list,
@@ -148,7 +156,7 @@ impl<K, V> RedHashMap<K, V> {
     fn next_free_node(
         nl: &mut red::HashMap_NodeList<K, V>,
     ) -> Option<*mut red::HashMap_Node<K, V>> {
-        if nl.nextIdx == Self::INVALID_INDEX {
+        if nl.nextIdx == INVALID_INDEX {
             return None;
         }
         if nl.nextIdx == nl.size {
@@ -157,7 +165,7 @@ impl<K, V> RedHashMap<K, V> {
                 nl.size += 1;
                 nl.nextIdx += 1;
             } else {
-                nl.nextIdx = Self::INVALID_INDEX;
+                nl.nextIdx = INVALID_INDEX;
             }
             return Some(node);
         }
@@ -168,24 +176,39 @@ impl<K, V> RedHashMap<K, V> {
 
     #[inline]
     fn split_mut(&mut self) -> (&mut red::HashMap_NodeList<K, V>, &mut [u32]) {
-        (&mut self.0.nodeList, unsafe {
-            slice::from_raw_parts_mut(self.0.indexTable, self.0.capacity as _)
-        })
+        (
+            &mut self.0.nodeList,
+            (self.0.capacity > 0)
+                .then(|| unsafe {
+                    slice::from_raw_parts_mut(self.0.indexTable, self.0.capacity as _)
+                })
+                .unwrap_or_default(),
+        )
     }
 
     #[inline]
     fn indexes(&self) -> &[u32] {
-        unsafe { slice::from_raw_parts(self.0.indexTable, self.0.capacity as _) }
+        (self.capacity() > 0)
+            .then(|| unsafe { slice::from_raw_parts(self.0.indexTable, self.0.capacity as _) })
+            .unwrap_or_default()
     }
 
     #[inline]
     fn nodes(&self) -> &[red::HashMap_Node<K, V>] {
-        unsafe { slice::from_raw_parts(self.0.nodeList.nodes, self.0.nodeList.size as _) }
+        (self.capacity() > 0)
+            .then(|| unsafe {
+                slice::from_raw_parts(self.0.nodeList.nodes, self.0.nodeList.size as _)
+            })
+            .unwrap_or_default()
     }
 
     #[inline]
     fn nodes_mut(&mut self) -> &mut [red::HashMap_Node<K, V>] {
-        unsafe { slice::from_raw_parts_mut(self.0.nodeList.nodes, self.0.nodeList.size as _) }
+        (self.capacity() > 0)
+            .then(|| unsafe {
+                slice::from_raw_parts_mut(self.0.nodeList.nodes, self.0.nodeList.size as _)
+            })
+            .unwrap_or_default()
     }
 
     #[inline]
@@ -193,6 +216,46 @@ impl<K, V> RedHashMap<K, V> {
         unsafe { &*(self.0.allocator as *const IAllocator) }
     }
 }
+
+impl<'a, K, V> IntoIterator for &'a RedHashMap<K, V> {
+    type IntoIter = Iter<'a, K, V>;
+    type Item = (&'a K, &'a V);
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        Iter {
+            current_index: INVALID_INDEX,
+            indexes: self.indexes(),
+            nodes: self.nodes(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Iter<'a, K, V> {
+    current_index: u32,
+    indexes: &'a [u32],
+    nodes: &'a [red::HashMap_Node<K, V>],
+}
+
+impl<'a, K, V> Iterator for Iter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_index != INVALID_INDEX {
+            let node = &self.nodes[self.current_index as usize];
+            self.current_index = node.next;
+            return Some((&node.key, &node.value));
+        }
+
+        let (index, rem) = self.indexes.split_first()?;
+        self.current_index = *index;
+        self.indexes = rem;
+        self.next()
+    }
+}
+
+impl<K, V> FusedIterator for Iter<'_, K, V> {}
 
 pub trait Hash {
     fn hash(&self) -> u32;

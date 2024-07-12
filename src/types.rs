@@ -17,15 +17,18 @@ pub use maths::{EulerAngles, Quaternion, Vector2, Vector3, Vector4};
 mod array;
 pub use array::{IntoIter, RedArray};
 mod refs;
-pub use refs::{Native, Ref, ScriptClass, ScriptRef, Scripted, WeakRef};
+pub use refs::{ClassKind, Native, Ref, ScriptClass, ScriptClassOps, ScriptRef, Scripted, WeakRef};
 mod string;
 pub use string::RedString;
 mod cname;
 pub use cname::{CName, CNamePool};
 mod rtti;
 pub use rtti::{
-    ArrayType, Bitfield, Class, ClassHandle, Enum, Function, FunctionHandler, GlobalFunction,
-    IScriptable, Kind, Method, NativeClass, Property, StaticMethod, Type, ValueContainer, ValuePtr,
+    ArrayType, Bitfield, Class, ClassFlags, ClassHandle, CurveType, Enum, Function, FunctionFlags,
+    FunctionHandler, GlobalFunction, IScriptable, ISerializable, Kind, Method, NativeArrayType,
+    NativeClass, PointerType, Property, PropertyFlags, RaRefType, RefType, ResourceRefType,
+    ScriptRefType, StaticArrayType, StaticMethod, TaggedType, Type, ValueContainer, ValuePtr,
+    WeakRefType,
 };
 mod bytecode;
 pub use bytecode::{
@@ -39,3 +42,9 @@ mod hash;
 pub use hash::{Hash, RedHashMap};
 mod sync;
 pub use sync::{RwSpinLockReadGuard, RwSpinLockWriteGuard};
+mod misc;
+pub use misc::{
+    Curve, DataBuffer, DateTime, DeferredDataBuffer, EditorObjectId, Guid, LocalizationString,
+    MessageResourcePath, MultiChannelCurve, NodeRef, ResourceRef, SharedDataBuffer, StaticArray,
+    Variant,
+};

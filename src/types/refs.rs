@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
-use std::ptr;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::{iter, mem, ptr};
 
 use sealed::sealed;
 
-use super::{CName, IScriptable, Type};
+use super::{CName, IScriptable, ISerializable, Type};
 use crate::raw::root::RED4ext as red;
 use crate::repr::NativeRepr;
 use crate::systems::RttiSystem;
@@ -14,7 +14,6 @@ pub unsafe trait ScriptClass: Sized {
     type Kind: ClassKind<Self>;
 
     const CLASS_NAME: &'static str;
-    const NATIVE_NAME: &'static str = Self::CLASS_NAME;
 }
 
 #[sealed]
@@ -61,6 +60,25 @@ impl<T> ClassKind<T> for Native {
     }
 }
 
+#[sealed]
+pub trait ScriptClassOps: ScriptClass {
+    fn new_ref() -> Option<Ref<Self>>;
+    fn new_ref_with(init: impl FnOnce(&mut Self)) -> Option<Ref<Self>>;
+}
+
+#[sealed]
+impl<T: ScriptClass> ScriptClassOps for T {
+    #[inline]
+    fn new_ref() -> Option<Ref<Self>> {
+        Ref::new()
+    }
+
+    #[inline]
+    fn new_ref_with(init: impl FnOnce(&mut Self)) -> Option<Ref<Self>> {
+        Ref::new_with(init)
+    }
+}
+
 type NativeType<T> = <<T as ScriptClass>::Kind as ClassKind<T>>::NativeType;
 
 #[repr(transparent)]
@@ -74,7 +92,7 @@ impl<T: ScriptClass> Ref<T> {
 
     pub fn new_with(init: impl FnOnce(&mut T)) -> Option<Self> {
         let system = RttiSystem::get();
-        let class = system.get_class(CName::new(T::NATIVE_NAME))?;
+        let class = system.get_class(CName::new(T::CLASS_NAME))?;
         let mut this = Self::default();
         Self::ctor(&mut this, class.instantiate().as_ptr().cast::<T>());
 
@@ -90,8 +108,13 @@ impl<T: ScriptClass> Ref<T> {
     }
 
     #[inline]
-    pub fn fields(&self) -> Option<&T> {
+    pub unsafe fn fields(&self) -> Option<&T> {
         Some(T::Kind::get(self.0.instance()?))
+    }
+
+    #[inline]
+    pub unsafe fn fields_mut(&mut self) -> Option<&mut T> {
+        Some(T::Kind::get_mut(self.0.instance_mut()?))
     }
 
     #[inline]
@@ -103,6 +126,18 @@ impl<T: ScriptClass> Ref<T> {
     pub fn downgrade(self) -> WeakRef<T> {
         self.0.inc_weak();
         WeakRef(self.0.clone())
+    }
+
+    pub fn cast<U>(self) -> Option<Ref<U>>
+    where
+        U: ScriptClass,
+    {
+        let inst = unsafe { (self.0 .0.instance as *const ISerializable).as_ref() }?;
+        let class = inst.class();
+        iter::once(class)
+            .chain(class.base_iter())
+            .any(|class| class.name() == CName::new(U::CLASS_NAME))
+            .then(|| unsafe { mem::transmute(self) })
     }
 }
 
@@ -138,11 +173,6 @@ unsafe impl<T: ScriptClass> Sync for Ref<T> {}
 pub struct WeakRef<T: ScriptClass>(BaseRef<NativeType<T>>);
 
 impl<T: ScriptClass> WeakRef<T> {
-    #[inline]
-    pub fn fields(&self) -> Option<&T> {
-        Some(T::Kind::get(self.0.instance()?))
-    }
-
     #[inline]
     pub fn upgrade(self) -> Option<Ref<T>> {
         self.0.inc_strong_if_non_zero().then(|| Ref(self.0.clone()))
@@ -285,7 +315,7 @@ pub struct ScriptRef<'a, T>(red::ScriptRef<T>, PhantomData<&'a mut T>);
 impl<'a, T: NativeRepr> ScriptRef<'a, T> {
     pub fn new(val: &'a mut T) -> Option<Self> {
         let rtti = RttiSystem::get();
-        let inner = rtti.get_type(CName::new(T::NATIVE_NAME))?;
+        let inner = rtti.get_type(CName::new(T::NAME))?;
         let ref_ = red::ScriptRef {
             innerType: inner.as_raw() as *const _ as *mut red::CBaseRTTIType,
             ref_: val as *mut T,

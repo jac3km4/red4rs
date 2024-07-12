@@ -1,8 +1,8 @@
 use const_combine::bounded::const_combine as combine;
 
 use crate::types::{
-    CName, EntityId, ItemId, RedArray, RedString, Ref, ResRef, ScriptClass, ScriptRef, TweakDbId,
-    WeakRef,
+    CName, EntityId, GameTime, ItemId, RedArray, RedString, Ref, ScriptClass, ScriptRef, TweakDbId,
+    Variant, WeakRef,
 };
 
 /// # Safety
@@ -11,8 +11,6 @@ use crate::types::{
 /// is idetical to the representation of type with name Self::NAME in-game.
 pub unsafe trait NativeRepr {
     const NAME: &'static str;
-    const NATIVE_NAME: &'static str = Self::NAME;
-    const MANGLED_NAME: &'static str = Self::NAME;
 }
 
 unsafe impl NativeRepr for () {
@@ -24,27 +22,19 @@ unsafe impl NativeRepr for RedString {
 }
 
 unsafe impl<A: NativeRepr> NativeRepr for RedArray<A> {
-    const MANGLED_NAME: &'static str = combine!(combine!("array<", A::MANGLED_NAME), ">");
     const NAME: &'static str = combine!("array:", A::NAME);
-    const NATIVE_NAME: &'static str = combine!("array:", A::NATIVE_NAME);
 }
 
 unsafe impl<A: ScriptClass> NativeRepr for Ref<A> {
-    const MANGLED_NAME: &'static str = A::CLASS_NAME;
     const NAME: &'static str = combine!("handle:", A::CLASS_NAME);
-    const NATIVE_NAME: &'static str = combine!("handle:", A::NATIVE_NAME);
 }
 
 unsafe impl<A: ScriptClass> NativeRepr for WeakRef<A> {
-    const MANGLED_NAME: &'static str = A::CLASS_NAME;
     const NAME: &'static str = combine!("whandle:", A::CLASS_NAME);
-    const NATIVE_NAME: &'static str = combine!("whandle:", A::NATIVE_NAME);
 }
 
 unsafe impl<'a, A: NativeRepr> NativeRepr for ScriptRef<'a, A> {
-    const MANGLED_NAME: &'static str = combine!(combine!("script_ref<", A::MANGLED_NAME), ">");
     const NAME: &'static str = combine!("script_ref:", A::NAME);
-    const NATIVE_NAME: &'static str = combine!("script_ref:", A::NATIVE_NAME);
 }
 
 macro_rules! impl_native_repr {
@@ -56,7 +46,6 @@ macro_rules! impl_native_repr {
     ($ty:ty, $name:literal, $native_name:literal) => {
         unsafe impl NativeRepr for $ty {
             const NAME: &'static str = $name;
-            const NATIVE_NAME: &'static str = $native_name;
         }
     };
 }
@@ -73,10 +62,11 @@ impl_native_repr!(u16, "Uint16");
 impl_native_repr!(u8, "Uint8");
 impl_native_repr!(bool, "Bool");
 impl_native_repr!(CName, "CName");
-impl_native_repr!(ResRef, "ResRef", "redResourceReferenceScriptToken");
 impl_native_repr!(TweakDbId, "TweakDBID");
 impl_native_repr!(ItemId, "ItemID", "gameItemID");
 impl_native_repr!(EntityId, "EntityID", "entEntityID");
+impl_native_repr!(GameTime, "GameTime", "GameTime");
+impl_native_repr!(Variant, "Variant", "Variant");
 
 pub trait IntoRepr: Sized {
     type Repr: NativeRepr;

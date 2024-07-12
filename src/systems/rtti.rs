@@ -2,8 +2,8 @@ use std::{mem, ptr};
 
 use crate::raw::root::RED4ext as red;
 use crate::types::{
-    Bitfield, CName, Class, ClassHandle, Enum, Function, GlobalFunction, PoolRef, RedArray,
-    RedHashMap, RwSpinLockReadGuard, RwSpinLockWriteGuard, Type,
+    Bitfield, CName, Class, ClassFlags, ClassHandle, Enum, Function, GlobalFunction, PoolRef,
+    RedArray, RedHashMap, RwSpinLockReadGuard, RwSpinLockWriteGuard, Type,
 };
 
 #[repr(transparent)]
@@ -143,6 +143,21 @@ impl RttiSystem {
     pub fn get_enum_by_script_name(&self, name: CName) -> Option<&Enum> {
         let ty = unsafe { (self.vft().get_enum_by_script_name)(self, name) };
         unsafe { ty.cast::<Enum>().as_ref() }
+    }
+
+    #[inline]
+    pub fn types(&self) -> &RedHashMap<CName, &Type> {
+        unsafe { &*(&self.0.types as *const _ as *const RedHashMap<CName, &Type>) }
+    }
+
+    #[inline]
+    pub fn script_to_native_map(&self) -> &RedHashMap<CName, CName> {
+        unsafe { &*(&self.0.scriptToNative as *const _ as *const RedHashMap<CName, CName>) }
+    }
+
+    #[inline]
+    pub fn native_to_script_map(&self) -> &RedHashMap<CName, CName> {
+        unsafe { &*(&self.0.nativeToScript as *const _ as *const RedHashMap<CName, CName>) }
     }
 
     #[inline]
@@ -293,7 +308,7 @@ struct RttiSystemVft {
     _create_scripted_class: unsafe extern "fastcall" fn(
         this: *mut RttiSystem,
         name: CName,
-        flags: red::CClass_Flags,
+        flags: ClassFlags,
         parent: *const Class,
     ),
     // FIXME: signature is wrong, but how to represent name and value of enumerator ?

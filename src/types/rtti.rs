@@ -1,7 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::{iter, mem, ptr, slice};
+use std::{fmt, iter, mem, ptr, slice};
 
 use super::{
     CName, CNamePool, IAllocator, Native, PoolRef, PoolableOps, RedArray, RedHashMap, RedString,
@@ -21,17 +21,17 @@ pub struct Type(red::CBaseRTTIType);
 
 impl Type {
     #[inline]
+    pub(crate) fn as_raw(&self) -> &red::CBaseRTTIType {
+        &self.0
+    }
+
+    #[inline]
     pub fn name(&self) -> CName {
         // calling Type with unk8 == 0 crashes the game
         if self.0.unk8 == 0 {
             return CName::undefined();
         }
         CName::from_raw(unsafe { (self.vft().tail.CBaseRTTIType_GetName)(&self.0) })
-    }
-
-    #[inline]
-    pub(crate) fn as_raw(&self) -> &red::CBaseRTTIType {
-        &self.0
     }
 
     #[inline]
@@ -81,6 +81,29 @@ impl Type {
         }
     }
 
+    #[allow(clippy::missing_transmute_annotations)]
+    pub fn tagged(&self) -> TaggedType<'_> {
+        match self.kind() {
+            Kind::Name => TaggedType::Name,
+            Kind::Fundamental => TaggedType::Fundamental,
+            Kind::Class => TaggedType::Class(unsafe { mem::transmute(&self.0) }),
+            Kind::Array => TaggedType::Array(unsafe { mem::transmute(&self.0) }),
+            Kind::Simple => TaggedType::Simple,
+            Kind::Enum => TaggedType::Enum(unsafe { mem::transmute(&self.0) }),
+            Kind::StaticArray => TaggedType::StaticArray(unsafe { mem::transmute(&self.0) }),
+            Kind::NativeArray => TaggedType::NativeArray(unsafe { mem::transmute(&self.0) }),
+            Kind::Pointer => TaggedType::Pointer(unsafe { mem::transmute(&self.0) }),
+            Kind::Ref => TaggedType::Ref(unsafe { mem::transmute(&self.0) }),
+            Kind::WeakRef => TaggedType::WeakRef(unsafe { mem::transmute(&self.0) }),
+            Kind::ResourceRef => TaggedType::ResourceRef(unsafe { mem::transmute(&self.0) }),
+            Kind::RaRef => TaggedType::RaRef(unsafe { mem::transmute(&self.0) }),
+            Kind::BitField => TaggedType::BitField(unsafe { mem::transmute(&self.0) }),
+            Kind::Curve => TaggedType::Curve(unsafe { mem::transmute(&self.0) }),
+            Kind::ScriptRef => TaggedType::ScriptRef(unsafe { mem::transmute(&self.0) }),
+            Kind::FixedArray => TaggedType::FixedArray(unsafe { mem::transmute(&self.0) }),
+        }
+    }
+
     pub unsafe fn to_string(&self, value: ValuePtr) -> RedString {
         let mut str = RedString::new();
         unsafe {
@@ -111,22 +134,17 @@ pub enum Kind {
     StaticArray = red::ERTTIType::StaticArray,
     NativeArray = red::ERTTIType::NativeArray,
     Pointer = red::ERTTIType::Pointer,
-    Handle = red::ERTTIType::Handle,
-    WeakHandle = red::ERTTIType::WeakHandle,
-    ResourceReference = red::ERTTIType::ResourceReference,
-    ResourceAsyncReference = red::ERTTIType::ResourceAsyncReference,
+    Ref = red::ERTTIType::Handle,
+    WeakRef = red::ERTTIType::WeakHandle,
+    ResourceRef = red::ERTTIType::ResourceReference,
+    RaRef = red::ERTTIType::ResourceAsyncReference,
     BitField = red::ERTTIType::BitField,
-    LegacySingleChannelCurve = red::ERTTIType::LegacySingleChannelCurve,
-    ScriptReference = red::ERTTIType::ScriptReference,
+    Curve = red::ERTTIType::LegacySingleChannelCurve,
+    ScriptRef = red::ERTTIType::ScriptReference,
     FixedArray = red::ERTTIType::FixedArray,
 }
 
 impl Kind {
-    #[inline]
-    pub fn is_pointer(self) -> bool {
-        matches!(self, Self::Pointer | Self::Handle | Self::WeakHandle)
-    }
-
     #[inline]
     pub fn is_class(self) -> bool {
         self == Self::Class
@@ -139,6 +157,27 @@ impl Kind {
             Self::Array | Self::StaticArray | Self::NativeArray | Self::FixedArray
         )
     }
+}
+
+#[derive(Debug)]
+pub enum TaggedType<'a> {
+    Name,
+    Fundamental,
+    Class(&'a Class),
+    Array(&'a ArrayType),
+    Simple,
+    Enum(&'a Enum),
+    StaticArray(&'a StaticArrayType),
+    NativeArray(&'a NativeArrayType),
+    Pointer(&'a PointerType),
+    Ref(&'a RefType),
+    WeakRef(&'a WeakRefType),
+    ResourceRef(&'a ResourceRefType),
+    RaRef(&'a RaRefType),
+    BitField(&'a Bitfield),
+    Curve(&'a CurveType),
+    ScriptRef(&'a ScriptRefType),
+    FixedArray(&'a ArrayType),
 }
 
 #[derive(Debug)]
@@ -165,8 +204,47 @@ impl Class {
     }
 
     #[inline]
+    pub fn flags(&self) -> ClassFlags {
+        ClassFlags(self.0.flags)
+    }
+
+    #[inline]
+    pub fn set_flags(&mut self, flags: ClassFlags) {
+        self.0.flags = flags.0;
+    }
+
+    #[inline]
+    pub fn size(&self) -> u32 {
+        self.0.size
+    }
+
+    #[inline]
+    pub fn holder_size(&self) -> u32 {
+        self.0.holderSize
+    }
+
+    #[inline]
+    pub fn alignment(&self) -> u32 {
+        self.0.alignment
+    }
+
+    #[inline]
+    pub fn properties_size(&self) -> u32 {
+        if !self.flags().is_native() && self.is_class() {
+            self.holder_size()
+        } else {
+            self.size()
+        }
+    }
+
+    #[inline]
     pub fn properties(&self) -> &RedArray<&Property> {
         unsafe { mem::transmute(&self.0.props) }
+    }
+
+    #[inline]
+    pub fn cached_properties(&self) -> &RedArray<&Property> {
+        unsafe { mem::transmute(&self.0.unk118) }
     }
 
     #[inline]
@@ -200,6 +278,13 @@ impl Class {
             .chain(self.base_iter())
             .flat_map(Class::properties)
             .copied()
+    }
+
+    pub fn is_class(&self) -> bool {
+        // there might be a better way to check this
+        iter::once(self)
+            .chain(self.base_iter())
+            .any(|c| c.name() == CName::new("ISerializable"))
     }
 
     #[inline]
@@ -262,6 +347,126 @@ impl Drop for Class {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+#[repr(transparent)]
+pub struct ClassFlags(red::CClass_Flags);
+
+impl ClassFlags {
+    pub fn is_abstract(&self) -> bool {
+        self.0.isAbstract() != 0
+    }
+
+    pub fn set_is_abstract(&mut self, is_abstract: bool) {
+        self.0.set_isAbstract(is_abstract as u32)
+    }
+
+    pub fn is_native(&self) -> bool {
+        self.0.isNative() != 0
+    }
+
+    pub fn set_is_native(&mut self, is_native: bool) {
+        self.0.set_isNative(is_native as u32)
+    }
+
+    pub fn is_scripted_class(&self) -> bool {
+        self.0.isScriptedClass() != 0
+    }
+
+    pub fn set_is_scripted_class(&mut self, is_scripted_class: bool) {
+        self.0.set_isScriptedClass(is_scripted_class as u32)
+    }
+
+    pub fn is_scripted_struct(&self) -> bool {
+        self.0.isScriptedStruct() != 0
+    }
+
+    pub fn set_is_scripted_struct(&mut self, is_scripted_struct: bool) {
+        self.0.set_isScriptedStruct(is_scripted_struct as u32)
+    }
+
+    pub fn has_no_default_object_serialization(&self) -> bool {
+        self.0.hasNoDefaultObjectSerialization() != 0
+    }
+
+    pub fn set_has_no_default_object_serialization(
+        &mut self,
+        has_no_default_object_serialization: bool,
+    ) {
+        self.0
+            .set_hasNoDefaultObjectSerialization(has_no_default_object_serialization as u32)
+    }
+
+    pub fn is_always_transient(&self) -> bool {
+        self.0.isAlwaysTransient() != 0
+    }
+
+    pub fn set_is_always_transient(&mut self, is_always_transient: bool) {
+        self.0.set_isAlwaysTransient(is_always_transient as u32)
+    }
+
+    pub fn is_import_only(&self) -> bool {
+        self.0.isImportOnly() != 0
+    }
+
+    pub fn set_is_import_only(&mut self, is_import_only: bool) {
+        self.0.set_isImportOnly(is_import_only as u32)
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.0.isPrivate() != 0
+    }
+
+    pub fn set_is_private(&mut self, is_private: bool) {
+        self.0.set_isPrivate(is_private as u32)
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.0.isProtected() != 0
+    }
+
+    pub fn set_is_protected(&mut self, is_protected: bool) {
+        self.0.set_isProtected(is_protected as u32)
+    }
+
+    pub fn is_test_only(&self) -> bool {
+        self.0.isTestOnly() != 0
+    }
+
+    pub fn set_is_test_only(&mut self, is_test_only: bool) {
+        self.0.set_isTestOnly(is_test_only as u32)
+    }
+
+    pub fn is_savable(&self) -> bool {
+        self.0.isSavable() != 0
+    }
+
+    pub fn set_is_savable(&mut self, is_savable: bool) {
+        self.0.set_isSavable(is_savable as u32)
+    }
+}
+
+impl fmt::Debug for ClassFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ClassFlags")
+            .field("is_abstract", &self.0.isAbstract())
+            .field("is_native", &self.0.isNative())
+            .field("is_scripted_class", &self.0.isScriptedClass())
+            .field("is_scripted_struct", &self.0.isScriptedStruct())
+            .field(
+                "has_no_default_object_serialization",
+                &self.0.hasNoDefaultObjectSerialization(),
+            )
+            .field("is_always_transient", &self.0.isAlwaysTransient())
+            .field("is_import_only", &self.0.isImportOnly())
+            .field("is_private", &self.0.isPrivate())
+            .field("is_protected", &self.0.isProtected())
+            .field("is_test_only", &self.0.isTestOnly())
+            .field("is_savable", &self.0.isSavable())
+            .field("b10", &self.0.b10())
+            .finish()
+    }
+}
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct NativeClass<T>(Class, PhantomData<*mut T>);
@@ -281,7 +486,7 @@ impl<T> NativeClass<T> {
         const DESTRUCT_SLOT: usize = 28;
         const ALLOC_SLOT: usize = 29;
 
-        let cstr = CString::new(T::NATIVE_NAME).expect("should create a CString");
+        let cstr = CString::new(T::CLASS_NAME).expect("should create a CString");
 
         let mut class = Class::new_native(&cstr, mem::size_of::<T>() as u32);
         if let Some(base) = base {
@@ -369,6 +574,196 @@ impl ClassHandle {
 }
 
 #[derive(Debug)]
+pub struct PointerType(red::CRTTIPointerType);
+
+impl PointerType {
+    #[inline]
+    pub fn pointee(&self) -> &Type {
+        unsafe { &*self.0.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct RefType(red::CRTTIHandleType);
+
+impl RefType {
+    #[inline]
+    pub fn pointee(&self) -> &Type {
+        unsafe { &*self.0.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct WeakRefType(red::CRTTIWeakHandleType);
+
+impl WeakRefType {
+    #[inline]
+    pub fn pointee(&self) -> &Type {
+        unsafe { &*self.0.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct ScriptRefType(red::CRTTIScriptReferenceType);
+
+impl ScriptRefType {
+    #[inline]
+    pub fn pointee(&self) -> &Type {
+        unsafe { &*self.0.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct StaticArrayType(red::CRTTIStaticArrayType);
+
+impl StaticArrayType {
+    #[inline]
+    pub fn element_type(&self) -> &Type {
+        unsafe { &*self.0._base.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn size(&self) -> u32 {
+        self.0.size as _
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct NativeArrayType(red::CRTTINativeArrayType);
+
+impl NativeArrayType {
+    #[inline]
+    pub fn element_type(&self) -> &Type {
+        unsafe { &*self.0._base.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn size(&self) -> u32 {
+        self.0.size as _
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct ResourceRefType(red::CRTTIResourceReferenceType);
+
+impl ResourceRefType {
+    #[inline]
+    pub fn resource_type(&self) -> &Type {
+        unsafe { &*self.0.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct RaRefType(red::CRTTIResourceAsyncReferenceType);
+
+impl RaRefType {
+    #[inline]
+    pub fn resource_type(&self) -> &Type {
+        unsafe { &*self.0.innerType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
+pub struct CurveType(red::CRTTILegacySingleChannelCurveType);
+
+impl CurveType {
+    #[inline]
+    pub fn element_type(&self) -> &Type {
+        unsafe { &*self.0.curveType.cast::<Type>() }
+    }
+
+    #[inline]
+    pub fn as_type(&self) -> &Type {
+        unsafe { &*(self as *const _ as *const Type) }
+    }
+
+    #[inline]
+    pub fn as_type_mut(&mut self) -> &mut Type {
+        unsafe { &mut *(self as *mut _ as *mut Type) }
+    }
+}
+
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct Function(red::CBaseFunction);
 
@@ -376,6 +771,16 @@ impl Function {
     #[inline]
     pub fn name(&self) -> CName {
         CName::from_raw(self.0.fullName)
+    }
+
+    #[inline]
+    pub fn flags(&self) -> FunctionFlags {
+        FunctionFlags(self.0.flags)
+    }
+
+    #[inline]
+    pub fn set_flags(&mut self, flags: FunctionFlags) {
+        self.0.flags = flags.0;
     }
 
     #[inline]
@@ -399,11 +804,6 @@ impl Function {
     }
 
     #[inline]
-    pub fn is_static(&self) -> bool {
-        self.0.flags.isStatic() != 0
-    }
-
-    #[inline]
     pub fn add_param(&mut self, typ: CName, name: &CStr, is_out: bool, is_optional: bool) -> bool {
         unsafe {
             self.0
@@ -416,21 +816,6 @@ impl Function {
         unsafe { self.0.SetReturnType(typ.to_raw()) };
     }
 
-    #[inline]
-    pub fn set_is_native(&mut self, is_native: bool) {
-        self.0.flags.set_isNative(is_native as u32)
-    }
-
-    #[inline]
-    pub fn set_is_final(&mut self, is_final: bool) {
-        self.0.flags.set_isFinal(is_final as u32)
-    }
-
-    #[inline]
-    pub fn set_is_static(&mut self, is_static: bool) {
-        self.0.flags.set_isStatic(is_static as u32)
-    }
-
     pub fn execute<A, R>(&self, ctx: Option<&IScriptable>, mut args: A) -> Result<R, InvokeError>
     where
         A: Args,
@@ -438,8 +823,7 @@ impl Function {
         R::Repr: Default,
     {
         let mut ret = R::Repr::default();
-        let mut out =
-            StackArg::new(&mut ret).ok_or(InvokeError::UnresolvedType(R::Repr::NATIVE_NAME))?;
+        let mut out = StackArg::new(&mut ret).ok_or(InvokeError::UnresolvedType(R::Repr::NAME))?;
         let arr = args.to_array()?;
 
         #[cfg(not(all(debug_assertions, feature = "log")))]
@@ -526,13 +910,16 @@ impl GlobalFunction {
         full_name: &CStr,
         short_name: &CStr,
         handler: FunctionHandler<IScriptable, R>,
+        flags: FunctionFlags,
     ) -> PoolRef<Self> {
         let mut func = GlobalFunction::alloc().expect("should allocate a GlobalFunction");
         let full_name = CNamePool::add_cstr(full_name);
         let short_name = CNamePool::add_cstr(short_name);
 
         Self::ctor(func.as_mut_ptr(), full_name, short_name, handler as _);
-        unsafe { func.assume_init() }
+        let mut func = unsafe { func.assume_init() };
+        func.as_function_mut().set_flags(flags);
+        func
     }
 
     fn ctor(ptr: *mut Self, full_name: CName, short_name: CName, handler: VoidPtr) {
@@ -573,6 +960,7 @@ impl Method {
         full_name: &CStr,
         short_name: &CStr,
         handler: FunctionHandler<C, R>,
+        flags: FunctionFlags,
     ) -> PoolRef<Self>
     where
         C: ScriptClass,
@@ -583,7 +971,7 @@ impl Method {
 
         let rtti = RttiSystem::get();
         let class = rtti
-            .get_class(CName::new(C::NATIVE_NAME))
+            .get_class(CName::new(C::CLASS_NAME))
             .expect("should find the class");
 
         Self::ctor(
@@ -592,6 +980,7 @@ impl Method {
             full_name,
             short_name,
             handler as _,
+            flags,
         );
         unsafe { func.assume_init() }
     }
@@ -602,6 +991,7 @@ impl Method {
         full_name: CName,
         short_name: CName,
         handler: VoidPtr,
+        flags: FunctionFlags,
     ) {
         unsafe {
             let ctor = crate::fn_from_hash!(
@@ -615,14 +1005,7 @@ impl Method {
                     red::CBaseFunction_Flags,
                 )
             );
-            ctor(
-                ptr,
-                class,
-                full_name,
-                short_name,
-                handler,
-                Default::default(),
-            );
+            ctor(ptr, class, full_name, short_name, handler, flags.0);
         };
     }
 
@@ -719,6 +1102,44 @@ impl Drop for StaticMethod {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+#[repr(transparent)]
+pub struct FunctionFlags(red::CBaseFunction_Flags);
+
+impl FunctionFlags {
+    pub fn is_native(&self) -> bool {
+        self.0.isNative() != 0
+    }
+
+    pub fn set_is_native(&mut self, is_native: bool) {
+        self.0.set_isNative(is_native as u32)
+    }
+
+    pub fn is_static(&self) -> bool {
+        self.0.isStatic() != 0
+    }
+
+    pub fn set_is_static(&mut self, is_static: bool) {
+        self.0.set_isStatic(is_static as u32)
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.0.isFinal() != 0
+    }
+
+    pub fn set_is_final(&mut self, is_final: bool) {
+        self.0.set_isFinal(is_final as u32)
+    }
+
+    pub fn is_event(&self) -> bool {
+        self.0.isEvent() != 0
+    }
+
+    pub fn set_is_event(&mut self, is_event: bool) {
+        self.0.set_isEvent(is_event as u32)
+    }
+}
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Property(red::CProperty);
@@ -752,23 +1173,50 @@ impl Property {
     }
 
     #[inline]
+    pub fn flags(&self) -> PropertyFlags {
+        PropertyFlags(self.0.flags)
+    }
+
+    #[inline]
+    pub fn set_flags(&mut self, flags: PropertyFlags) {
+        self.0.flags = flags.0;
+    }
+
+    #[inline]
     pub fn type_(&self) -> &Type {
         unsafe { &*(self.0.type_ as *const Type) }
+    }
+
+    #[inline]
+    pub fn value_offset(&self) -> u32 {
+        self.0.valueOffset
     }
 
     #[inline]
     pub unsafe fn value(&self, container: ValueContainer) -> ValuePtr {
         unsafe { ValuePtr(container.0.byte_add(self.0.valueOffset as usize)) }
     }
+}
 
-    #[inline]
-    pub fn is_in_value_holder(&self) -> bool {
-        self.0.flags.inValueHolder() != 0
+#[derive(Debug, Default, Clone, Copy)]
+#[repr(transparent)]
+pub struct PropertyFlags(red::CProperty_Flags);
+
+impl PropertyFlags {
+    pub fn is_scripted(&self) -> bool {
+        self.0.isScripted() != 0
     }
 
-    #[inline]
-    pub fn is_scripted(&self) -> bool {
-        self.0.flags.isScripted() != 0
+    pub fn set_is_scripted(&mut self, is_scripted: bool) {
+        self.0.set_isScripted(is_scripted as u64)
+    }
+
+    pub fn in_value_holder(&self) -> bool {
+        self.0.inValueHolder() != 0
+    }
+
+    pub fn set_in_value_holder(&mut self, in_value_holder: bool) {
+        self.0.set_inValueHolder(in_value_holder as u64)
     }
 }
 
@@ -828,7 +1276,17 @@ impl Enum {
 
     #[inline]
     pub fn variant_names(&self) -> &RedArray<CName> {
-        unsafe { mem::transmute(&self.0.aliasList) }
+        unsafe { mem::transmute(&self.0.hashList) }
+    }
+
+    #[inline]
+    pub fn variant_values(&self) -> &RedArray<i64> {
+        unsafe { mem::transmute(&self.0.valueList) }
+    }
+
+    #[inline]
+    pub fn byte_size(&self) -> u8 {
+        self.0.actualSize
     }
 
     #[inline]
@@ -859,6 +1317,10 @@ impl Bitfield {
         CName::from_raw(self.0.name)
     }
 
+    pub fn byte_size(&self) -> u8 {
+        self.0.actualSize
+    }
+
     pub fn fields(&self) -> &[CName; 64] {
         unsafe { mem::transmute(&self.0.bitNames) }
     }
@@ -882,21 +1344,43 @@ impl Drop for Bitfield {
 
 #[derive(Debug)]
 #[repr(transparent)]
+pub struct ISerializable(red::ISerializable);
+
+impl ISerializable {
+    #[inline]
+    pub fn class(&self) -> &Class {
+        unsafe {
+            &*(((*self.0.vtable_).ISerializable_GetType)(
+                (&self.0) as *const _ as *mut red::ISerializable,
+            ) as *const Class)
+        }
+    }
+}
+
+unsafe impl ScriptClass for ISerializable {
+    type Kind = Native;
+
+    const CLASS_NAME: &'static str = "ISerializable";
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
 pub struct IScriptable(red::IScriptable);
 
 impl IScriptable {
     #[inline]
     pub fn class(&self) -> &Class {
-        unsafe {
-            &*(((*self.0._base.vtable_).ISerializable_GetType)(
-                (&self.0._base) as *const _ as *mut red::ISerializable,
-            ) as *const Class)
-        }
+        self.as_serializable().class()
     }
 
     #[inline]
     pub fn fields(&self) -> ValueContainer {
         ValueContainer(self.0.valueHolder)
+    }
+
+    #[inline]
+    pub fn as_serializable(&self) -> &ISerializable {
+        unsafe { &*(self as *const _ as *const ISerializable) }
     }
 
     #[inline]

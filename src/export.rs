@@ -88,7 +88,7 @@ impl<C: Default + Clone + ScriptClass> Exportable for ClassExport<C> {
 
         let mut rtti = RttiSystemMut::get();
         let class = rtti
-            .get_class(CName::new(C::NATIVE_NAME))
+            .get_class(CName::new(C::CLASS_NAME))
             .expect("class should exist");
         for method in converted {
             class.add_method(method);
@@ -150,7 +150,7 @@ macro_rules! exports {
 
 #[macro_export]
 macro_rules! methods {
-    [$($name:literal => $ty:ident::$id:ident),*$(,)?] => {
-        const { &[$($crate::method!($name, $ty::$id)),*] }
+    [$( $($mod:ident)* $name:literal => $ty:ident::$id:ident),*$(,)?] => {
+        const { &[$($crate::method!($($mod)* $name, $ty::$id)),*] }
     };
 }
