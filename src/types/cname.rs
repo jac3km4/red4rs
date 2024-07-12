@@ -12,11 +12,9 @@ pub struct CName(red::CName);
 impl CName {
     #[inline]
     pub const fn new(name: &str) -> Self {
-        #[allow(clippy::single_match)]
-        match name.as_bytes() {
-            b"None" => return Self::undefined(),
-            _ => {}
-        };
+        if let b"None" = name.as_bytes() {
+            return Self::undefined();
+        }
         Self(red::CName {
             hash: fnv1a64(name),
         })
