@@ -12,6 +12,10 @@ pub struct CName(red::CName);
 impl CName {
     #[inline]
     pub const fn new(name: &str) -> Self {
+        match name.as_bytes() {
+            b"None" => return Self::undefined(),
+            _ => {}
+        };
         Self(red::CName {
             hash: fnv1a64(name),
         })
