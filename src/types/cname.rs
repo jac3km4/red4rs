@@ -12,6 +12,7 @@ pub struct CName(red::CName);
 impl CName {
     #[inline]
     pub const fn new(name: &str) -> Self {
+        #[allow(clippy::equatable_if_let)]
         if let b"None" = name.as_bytes() {
             return Self::undefined();
         }
